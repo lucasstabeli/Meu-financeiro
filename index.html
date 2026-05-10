@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Wealth Pro</title>
+  <meta name="theme-color" content="#07080f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wealth Pro">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══════════ LOCK SCREEN ══════════ -->
+<div id="lockScreen" class="lock-screen hidden">
+  <div class="lock-panel">
+    <div class="lock-logo">◆</div>
+    <div class="lock-appname">Wealth Pro</div>
+    <div class="lock-sub" id="lockSub">Digite seu PIN</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key bio" id="bioBtn" onclick="doBiometric()" title="Face ID / Touch ID">􀎽</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key del" onclick="pinDel()">⌫</button>
+    </div>
+    <div class="lock-error" id="lockError"></div>
+  </div>
+</div>
+
+<!-- ══════════ PIN SETUP ══════════ -->
+<div id="setupScreen" class="lock-screen hidden">
+  <div class="lock-panel">
+    <div class="lock-logo">◆</div>
+    <div class="lock-appname">Wealth Pro</div>
+    <div class="pin-setup-step" id="setupStep">Criar PIN de acesso</div>
+    <div class="lock-sub" id="setupSub">Digite 4 dígitos para proteger o app</div>
+    <div class="pin-dots" id="setupDots">
+      <div class="pin-dot" id="s0"></div>
+      <div class="pin-dot" id="s1"></div>
+      <div class="pin-dot" id="s2"></div>
+      <div class="pin-dot" id="s3"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="setupKey('1')">1</button>
+      <button class="pin-key" onclick="setupKey('2')">2</button>
+      <button class="pin-key" onclick="setupKey('3')">3</button>
+      <button class="pin-key" onclick="setupKey('4')">4</button>
+      <button class="pin-key" onclick="setupKey('5')">5</button>
+      <button class="pin-key" onclick="setupKey('6')">6</button>
+      <button class="pin-key" onclick="setupKey('7')">7</button>
+      <button class="pin-key" onclick="setupKey('8')">8</button>
+      <button class="pin-key" onclick="setupKey('9')">9</button>
+      <button class="pin-key empty"></button>
+      <button class="pin-key" onclick="setupKey('0')">0</button>
+      <button class="pin-key del" onclick="setupDel()">⌫</button>
+    </div>
+    <div class="lock-error" id="setupError"></div>
+    <button class="btn btn-secondary" style="margin-top:20px" onclick="skipSetup()">Pular por agora</button>
+  </div>
+</div>
+
+<!-- ══════════ MAIN APP ══════════ -->
+<div id="app" class="app hidden">
+
+  <!-- ─── OVERVIEW ─── -->
+  <div id="view-overview" class="view-content active">
+    <div class="period-bar">
+      <button class="period-arrow" onclick="prevMonth()">‹</button>
+      <div class="period-label" id="periodLabel">Mai 2026</div>
+      <button class="period-arrow" onclick="nextMonth()">›</button>
+    </div>
+
+    <div class="greeting-card">
+      <div class="greeting-left">
+        <div class="greeting-time" id="greetingTime">Sexta, 09 de Maio</div>
+        <div class="greeting-text" id="greetingText">Boa tarde, Você</div>
+        <div class="greeting-sub">Veja seu resumo financeiro</div>
+      </div>
+      <button class="settings-btn" onclick="openModal('settings')">⚙</button>
+    </div>
+
+    <div class="balance-hero">
+      <div class="balance-label">Patrimônio Total</div>
+      <div class="balance-amount neutral" id="ov-patrimonio">R$ 0,00</div>
+      <div class="balance-row">
+        <div class="balance-col">
+          <div class="balance-col-label">Receitas</div>
+          <div class="balance-col-value positive" id="ov-receitas">R$ 0,00</div>
+        </div>
+        <div class="balance-col">
+          <div class="balance-col-label">Despesas</div>
+          <div class="balance-col-value negative" id="ov-despesas">R$ 0,00</div>
+        </div>
+        <div class="balance-col">
+          <div class="balance-col-label">Saldo</div>
+          <div class="balance-col-value positive" id="ov-saldo">R$ 0,00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Economia</div>
+        <div class="stat-value positive" id="ov-economia">0%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Cofrinhos</div>
+        <div class="stat-value gold" id="ov-cofrinhos">R$ 0,00</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Investimentos</div>
+        <div class="stat-value positive" id="ov-investimentos">R$ 0,00</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Nubank Livre</div>
+        <div class="stat-value neutral" id="ov-nubank-livre">R$ 0,00</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Cofrinhos (CDI)</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Banco</th><th>Principal</th><th>Rendeu</th><th>Total</th></tr></thead>
+        <tbody>
+          <tr><td>Nubank</td><td id="cof-nu-p">—</td><td id="cof-nu-r" style="color:var(--gold-2)">—</td><td id="cof-nu-t" style="font-weight:800">—</td></tr>
+          <tr><td>Itaú</td><td id="cof-it-p">—</td><td id="cof-it-r" style="color:var(--gold-2)">—</td><td id="cof-it-t" style="font-weight:800">—</td></tr>
+          <tr><td>BTG</td><td id="cof-bt-p">—</td><td id="cof-bt-r" style="color:var(--gold-2)">—</td><td id="cof-bt-t" style="font-weight:800">—</td></tr>
+          <tr class="total-row"><td>Total</td><td id="cof-tot-p">—</td><td id="cof-tot-r" style="color:var(--gold-2)">—</td><td id="cof-tot-t" style="color:var(--gold-2)">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Evolução Mensal</div>
+      <div class="chart-wrap lg"><canvas id="chart-evolucao"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Gastos por Categoria</div>
+      <div class="chart-wrap"><canvas id="chart-categorias"></canvas></div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Atividade Recente</div>
+      <button class="section-action" onclick="openModal('transaction')">+ Lançar</button>
+    </div>
+    <div id="recent-activity"></div>
+    <div style="height:6px"></div>
+  </div>
+
+  <!-- ─── DASHBOARD ─── -->
+  <div id="view-dashboard" class="view-content">
+    <div class="period-bar">
+      <button class="period-arrow" onclick="prevMonth()">‹</button>
+      <div class="period-label" id="dash-period">Mai 2026</div>
+      <button class="period-arrow" onclick="nextMonth()">›</button>
+    </div>
+
+    <div class="greeting-card" style="flex-direction:column;gap:0">
+      <div class="greeting-time">Analytics</div>
+      <div class="greeting-text" style="font-size:20px">Dashboard</div>
+    </div>
+
+    <div class="section-header"><div class="section-title">Maiores Gastos</div></div>
+    <div id="dash-top-cats"></div>
+
+    <div class="chart-card">
+      <div class="chart-title">Mês Atual vs Anterior</div>
+      <div class="chart-wrap"><canvas id="chart-compare"></canvas></div>
+    </div>
+
+    <div class="section-header"><div class="section-title">Projeção do Mês</div></div>
+    <div id="dash-projection" style="margin:0 16px 10px"></div>
+
+    <div class="section-header"><div class="section-title">Alertas</div></div>
+    <div id="dash-alerts"></div>
+    <div style="height:6px"></div>
+  </div>
+
+  <!-- ─── NUBANK ─── -->
+  <div id="view-nubank" class="view-content">
+    <div class="period-bar">
+      <button class="period-arrow" onclick="prevMonth()">‹</button>
+      <div class="period-label" id="nu-period">Mai 2026</div>
+      <button class="period-arrow" onclick="nextMonth()">›</button>
+    </div>
+
+    <div class="greeting-card" style="align-items:center">
+      <div><div class="greeting-time">Cartão de Crédito</div><div class="greeting-text" style="font-size:22px">Nubank 💜</div></div>
+      <div class="greeting-badge" id="nu-badge">R$ 0</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('nu','credito',this)">💳 Crédito</button>
+      <button class="tab" onclick="switchTab('nu','cofrinho',this)">🐷 Cofrinho</button>
+    </div>
+
+    <!-- CRÉDITO -->
+    <div id="nu-tab-credito">
+      <div class="balance-card">
+        <div class="balance-label">Limite Disponível</div>
+        <div class="balance-value positive" id="nu-disponivel">R$ 0,00</div>
+        <div class="progress-bg"><div class="progress-fill" id="nu-prog" style="width:0%"></div></div>
+        <div class="progress-text"><span id="nu-usado">R$ 0,00 usado</span><span id="nu-limite-txt">Limite: R$ 0,00</span></div>
+      </div>
+      <div class="stats-grid stats-grid-3">
+        <div class="stat-card"><div class="stat-label">Assinaturas</div><div class="stat-value warning" id="nu-fixos">R$ 0,00</div></div>
+        <div class="stat-card"><div class="stat-label">Parcelas</div><div class="stat-value negative" id="nu-parcelas">R$ 0,00</div></div>
+        <div class="stat-card"><div class="stat-label">Avulsos</div><div class="stat-value negative" id="nu-avulsos">R$ 0,00</div></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-title">Configurar limite</div>
+        <div class="form-row">
+          <div class="form-group"><label>Limite total</label><input type="number" id="in-nu-limite" placeholder="0,00"></div>
+          <button class="btn btn-primary btn-sm" style="align-self:flex-end;margin-bottom:10px" onclick="salvarLimiteNubank()">Salvar</button>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">Parcelas</div>
+        <button class="section-action" onclick="openModal('add-parcela')">+ Parcela</button>
+      </div>
+      <div id="lista-parcelas"></div>
+
+      <div class="section-header">
+        <div class="section-title">Assinaturas</div>
+        <button class="section-action" onclick="openModal('add-assinatura')">+ Assinatura</button>
+      </div>
+      <div id="lista-assinaturas"></div>
+
+      <div class="section-header">
+        <div class="section-title">Gastos Avulsos do Mês</div>
+        <button class="section-action" onclick="openModal('transaction')">+ Lançar</button>
+      </div>
+      <div id="lista-nu-avulsos"></div>
+    </div>
+
+    <!-- COFRINHO NUBANK -->
+    <div id="nu-tab-cofrinho" class="hidden">
+      <div class="balance-card gold-accent">
+        <div class="balance-label">💰 Cofrinho Nubank</div>
+        <div class="balance-value neutral" id="nu-cof-total">R$ 0,00</div>
+        <div class="balance-row" style="margin-top:4px">
+          <div class="balance-col"><div class="balance-col-label">Principal</div><div class="balance-col-value positive" id="nu-cof-principal">R$ 0,00</div></div>
+          <div class="balance-col"><div class="balance-col-label">Rendeu</div><div class="balance-col-value gold" id="nu-cof-rendeu">R$ 0,00</div></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-title">Configurar cofrinho</div>
+        <div class="form-group"><label>Valor investido</label><input type="number" id="in-cof-nu-p" placeholder="0,00"></div>
+        <div class="form-row">
+          <div class="form-group"><label>% do CDI</label><input type="number" id="in-cof-nu-perc" placeholder="100"></div>
+          <div class="form-group"><label>Data início</label><input type="date" id="in-cof-nu-data"></div>
+        </div>
+        <div class="form-group"><label>CDI anual (%)</label><input type="number" id="in-cdi" placeholder="10.65" step="0.01"><div class="form-hint">Atualizado manualmente</div></div>
+        <button class="btn btn-primary btn-block" onclick="salvarCofrinho('nubank')">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ITAÚ ─── -->
+  <div id="view-itau" class="view-content">
+    <div class="period-bar">
+      <button class="period-arrow" onclick="prevMonth()">‹</button>
+      <div class="period-label" id="it-period">Mai 2026</div>
+      <button class="period-arrow" onclick="nextMonth()">›</button>
+    </div>
+
+    <div class="greeting-card" style="align-items:center">
+      <div><div class="greeting-time">Conta Corrente</div><div class="greeting-text" style="font-size:22px">Itaú 🧡</div></div>
+      <div class="greeting-badge" id="it-badge">R$ 0</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('it','conta',this)">🏦 Conta</button>
+      <button class="tab" onclick="switchTab('it','cofrinho',this)">🐷 Cofrinho</button>
+    </div>
+
+    <!-- CONTA -->
+    <div id="it-tab-conta">
+      <div class="balance-card">
+        <div class="balance-label">Saldo Disponível</div>
+        <div class="balance-value positive" id="it-saldo">R$ 0,00</div>
+        <div class="balance-row" style="margin-top:4px">
+          <div class="balance-col"><div class="balance-col-label">Entradas</div><div class="balance-col-value positive" id="it-entradas">R$ 0,00</div></div>
+          <div class="balance-col"><div class="balance-col-label">Saídas</div><div class="balance-col-value negative" id="it-saidas">R$ 0,00</div></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-title">Saldo base da conta</div>
+        <div class="form-row">
+          <div class="form-group"><label>Saldo atual</label><input type="number" id="in-it-saldo" placeholder="0,00"></div>
+          <button class="btn btn-primary btn-sm" style="align-self:flex-end;margin-bottom:10px" onclick="salvarSaldoItau()">Salvar</button>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">Transações do Mês</div>
+        <button class="section-action" onclick="openModal('transaction')">+ Lançar</button>
+      </div>
+      <div id="lista-itau"></div>
+    </div>
+
+    <!-- COFRINHO ITAÚ -->
+    <div id="it-tab-cofrinho" class="hidden">
+      <div class="balance-card gold-accent">
+        <div class="balance-label">💰 Cofrinho Itaú</div>
+        <div class="balance-value neutral" id="it-cof-total">R$ 0,00</div>
+        <div class="balance-row" style="margin-top:4px">
+          <div class="balance-col"><div class="balance-col-label">Principal</div><div class="balance-col-value positive" id="it-cof-principal">R$ 0,00</div></div>
+          <div class="balance-col"><div class="balance-col-label">Rendeu</div><div class="balance-col-value gold" id="it-cof-rendeu">R$ 0,00</div></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-title">Configurar cofrinho</div>
+        <div class="form-group"><label>Valor investido</label><input type="number" id="in-cof-it-p" placeholder="0,00"></div>
+        <div class="form-row">
+          <div class="form-group"><label>% do CDI</label><input type="number" id="in-cof-it-perc" placeholder="100"></div>
+          <div class="form-group"><label>Data início</label><input type="date" id="in-cof-it-data"></div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="salvarCofrinho('itau')">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── BTG ─── -->
+  <div id="view-btg" class="view-content">
+    <div class="period-bar">
+      <button class="period-arrow" onclick="prevMonth()">‹</button>
+      <div class="period-label" id="bt-period">Mai 2026</div>
+      <button class="period-arrow" onclick="nextMonth()">›</button>
+    </div>
+
+    <div class="greeting-card" style="align-items:center">
+      <div><div class="greeting-time">Investimentos</div><div class="greeting-text" style="font-size:22px">BTG 📈</div></div>
+      <div class="greeting-badge" id="bt-badge">R$ 0</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('bt','acoes',this)">📊 Carteira</button>
+      <button class="tab" onclick="switchTab('bt','cofrinho',this)">🐷 Cofrinho</button>
+    </div>
+
+    <!-- AÇÕES -->
+    <div id="bt-tab-acoes">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Posição Total</div><div class="stat-value positive" id="bt-posicao">R$ 0,00</div></div>
+        <div class="stat-card"><div class="stat-label">Resultado</div><div class="stat-value neutral" id="bt-resultado">R$ 0,00</div></div>
+        <div class="stat-card"><div class="stat-label">Div./Mês</div><div class="stat-value gold" id="bt-div-mensal">R$ 0,00</div></div>
+        <div class="stat-card"><div class="stat-label">Div. Acum.</div><div class="stat-value gold" id="bt-div-acum">R$ 0,00</div></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Composição da Carteira</div>
+        <div class="chart-wrap"><canvas id="chart-carteira"></canvas></div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">Ações / FIIs</div>
+        <button class="section-action" onclick="openModal('add-acao')">+ Ativo</button>
+      </div>
+      <div id="lista-acoes"></div>
+    </div>
+
+    <!-- COFRINHO BTG -->
+    <div id="bt-tab-cofrinho" class="hidden">
+      <div class="balance-card gold-accent">
+        <div class="balance-label">💰 Cofrinho BTG</div>
+        <div class="balance-value neutral" id="bt-cof-total">R$ 0,00</div>
+        <div class="balance-row" style="margin-top:4px">
+          <div class="balance-col"><div class="balance-col-label">Principal</div><div class="balance-col-value positive" id="bt-cof-principal">R$ 0,00</div></div>
+          <div class="balance-col"><div class="balance-col-label">Rendeu</div><div class="balance-col-value gold" id="bt-cof-rendeu">R$ 0,00</div></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-title">Configurar cofrinho</div>
+        <div class="form-group"><label>Valor investido</label><input type="number" id="in-cof-bt-p" placeholder="0,00"></div>
+        <div class="form-row">
+          <div class="form-group"><label>% do CDI</label><input type="number" id="in-cof-bt-perc" placeholder="100"></div>
+          <div class="form-group"><label>Data início</label><input type="date" id="in-cof-bt-data"></div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="salvarCofrinho('btg')">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── DAY TRADE ─── -->
+  <div id="view-daytrade" class="view-content">
+    <div class="period-bar">
+      <button class="period-arrow" onclick="prevMonth()">‹</button>
+      <div class="period-label" id="dt-period">Mai 2026</div>
+      <button class="period-arrow" onclick="nextMonth()">›</button>
+    </div>
+
+    <div class="greeting-card" style="align-items:center">
+      <div><div class="greeting-time">Operações</div><div class="greeting-text" style="font-size:22px">Day Trade 🎲</div></div>
+      <div class="greeting-badge" id="dt-badge">R$ 0</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">P&L do Mês</div><div class="stat-value neutral" id="dt-pl">R$ 0,00</div></div>
+      <div class="stat-card"><div class="stat-label">Saldo Atual</div><div class="stat-value neutral" id="dt-saldo">R$ 0,00</div></div>
+      <div class="stat-card"><div class="stat-label">Operações</div><div class="stat-value neutral" id="dt-ops">0</div></div>
+      <div class="stat-card"><div class="stat-label">Taxa Contrato</div><div class="stat-value neutral" id="dt-taxa">R$ 0,50</div></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Evolução Day Trade</div>
+      <div class="chart-wrap"><canvas id="chart-dt"></canvas></div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-title">Configurar conta</div>
+      <div class="form-row">
+        <div class="form-group"><label>Saldo inicial</label><input type="number" id="in-dt-saldo" placeholder="0,00"></div>
+        <div class="form-group"><label>Custo/contrato</label><input type="number" id="in-dt-custo" placeholder="0,50" step="0.01"></div>
+      </div>
+      <button class="btn btn-secondary btn-block" onclick="salvarConfDT()">Salvar configuração</button>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Operações</div>
+      <button class="section-action" onclick="openModal('add-dt')">+ Operação</button>
+    </div>
+    <div id="lista-dt"></div>
+    <div style="height:6px"></div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ══════════ RADIAL OVERLAY ══════════ -->
+<div id="radialOverlay" class="radial-overlay"></div>
+
+<!-- ══════════ FAB ══════════ -->
+<div class="fab-wrap" id="fabWrap">
+  <button class="fab pulse" id="fab">◆</button>
+  <div class="fab-hint" id="fabHint">Segure pra navegar</div>
+
+  <div class="radial-item" id="ri-overview"  data-view="overview">
+    <div class="radial-icon">🏠</div><div class="radial-label">Início</div>
+  </div>
+  <div class="radial-item" id="ri-nubank"    data-view="nubank">
+    <div class="radial-icon">💜</div><div class="radial-label">Nubank</div>
+  </div>
+  <div class="radial-item" id="ri-itau"      data-view="itau">
+    <div class="radial-icon">🧡</div><div class="radial-label">Itaú</div>
+  </div>
+  <div class="radial-item" id="ri-btg"       data-view="btg">
+    <div class="radial-icon">📈</div><div class="radial-label">BTG</div>
+  </div>
+  <div class="radial-item" id="ri-daytrade"  data-view="daytrade">
+    <div class="radial-icon">🎲</div><div class="radial-label">Trade</div>
+  </div>
+  <div class="radial-item" id="ri-dashboard" data-view="dashboard">
+    <div class="radial-icon">📊</div><div class="radial-label">Analytics</div>
+  </div>
+</div>
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- Transaction (bank-aware) -->
+<div class="modal-overlay" id="modal-transaction">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Lançar Transação</div>
+    <div class="modal-body">
+      <div class="form-group"><label>Banco / Tipo</label>
+        <select id="tr-banco">
+          <option value="nubank">💜 Nubank — Despesa (crédito)</option>
+          <option value="itau-r">🧡 Itaú — Receita (entrada)</option>
+          <option value="itau-d">🧡 Itaú — Despesa (débito/PIX)</option>
+          <option value="geral-r">💵 Geral — Receita</option>
+          <option value="geral-d">💵 Geral — Despesa</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Categoria</label>
+        <select id="tr-categoria">
+          <option>Alimentação</option><option>Transporte</option><option>Saúde</option>
+          <option>Lazer</option><option>Educação</option><option>Moradia</option>
+          <option>Roupas</option><option>Assinaturas</option><option>Salário</option>
+          <option>Freelance</option><option>Investimento</option><option>Outros</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Descrição (opcional)</label><input type="text" id="tr-desc" placeholder="Ex: iFood, Uber..."></div>
+      <div class="form-group"><label>Valor (R$)</label><input type="number" id="tr-valor" placeholder="0,00" step="0.01"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('transaction')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="salvarTransacao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Parcela -->
+<div class="modal-overlay" id="modal-add-parcela">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-parcela-title">Nova Parcela</div>
+    <div class="modal-body">
+      <input type="hidden" id="ed-parcela-idx" value="-1">
+      <div class="form-group"><label>Descrição</label><input type="text" id="in-p-desc" placeholder="Ex: iPhone 16"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Valor/parcela (R$)</label><input type="number" id="in-p-valor" placeholder="0,00" step="0.01" oninput="previewParcela()"></div>
+        <div class="form-group"><label>Nº parcelas</label><input type="number" id="in-p-num" placeholder="12" min="1" oninput="previewParcela()"></div>
+      </div>
+      <div class="form-hint" id="preview-parcela" style="margin-top:-4px;font-size:13px;color:var(--gold-2)">Total: R$ 0,00</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-parcela')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="salvarParcela()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Assinatura -->
+<div class="modal-overlay" id="modal-add-assinatura">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-assin-title">Nova Assinatura</div>
+    <div class="modal-body">
+      <input type="hidden" id="ed-assin-idx" value="-1">
+      <div class="form-group"><label>Descrição</label><input type="text" id="in-a-desc" placeholder="Ex: Netflix, Spotify..."></div>
+      <div class="form-group"><label>Valor mensal (R$)</label><input type="number" id="in-a-valor" placeholder="0,00" step="0.01"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-assinatura')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="salvarAssinatura()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Ação -->
+<div class="modal-overlay" id="modal-add-acao">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-acao-title">Novo Ativo</div>
+    <div class="modal-body">
+      <input type="hidden" id="ed-acao-idx" value="-1">
+      <div class="form-row">
+        <div class="form-group"><label>Ticker</label><input type="text" id="in-ac-ticker" placeholder="PETR4"></div>
+        <div class="form-group"><label>Quantidade</label><input type="number" id="in-ac-qtd" placeholder="100"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Preço médio</label><input type="number" id="in-ac-pm" placeholder="0,00" step="0.01"></div>
+        <div class="form-group"><label>Preço atual</label><input type="number" id="in-ac-atual" placeholder="0,00" step="0.01"></div>
+      </div>
+      <div class="form-group"><label>Dividendo mensal/ação (opcional)</label><input type="number" id="in-ac-div" placeholder="0,00" step="0.01"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-acao')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="salvarAcao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Day Trade Op -->
+<div class="modal-overlay" id="modal-add-dt">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-dt-title">Nova Operação</div>
+    <div class="modal-body">
+      <input type="hidden" id="ed-dt-idx" value="-1">
+      <div class="form-row">
+        <div class="form-group"><label>Data</label><input type="date" id="in-dt-data"></div>
+        <div class="form-group"><label>Tipo</label>
+          <select id="in-dt-tipo"><option value="lucro">📈 Lucro</option><option value="prejuizo">📉 Prejuízo</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Valor bruto (R$)</label><input type="number" id="in-dt-valor" placeholder="0,00" step="0.01"></div>
+        <div class="form-group"><label>Contratos</label><input type="number" id="in-dt-contratos" placeholder="1" min="1"></div>
+      </div>
+      <div class="form-group"><label>Observação</label><input type="text" id="in-dt-obs" placeholder="Mini índice, WIN..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-dt')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="salvarOperacaoDT()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Configurações</div>
+    <div class="modal-body">
+      <div class="form-group"><label>Seu nome</label><input type="text" id="set-nome" placeholder="Como devo te chamar?"></div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Bloqueio por PIN</div>
+          <div class="setting-desc">Protege o app com senha de 4 dígitos</div>
+        </div>
+        <button class="toggle" id="toggle-pin" onclick="togglePin()"></button>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Biometria (Face/Touch ID)</div>
+          <div class="setting-desc">Requer HTTPS e dispositivo compatível</div>
+        </div>
+        <button class="toggle" id="toggle-bio" onclick="toggleBiometric()"></button>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Exportar dados</div>
+          <div class="setting-desc">Baixa um JSON com todos os seus dados</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportarDados()">Exportar</button>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Importar dados</div>
+          <div class="setting-desc">Restaura backup em JSON</div>
+        </div>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+          Importar <input type="file" accept=".json" style="display:none" onchange="importarDados(this)">
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('settings')">Fechar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="salvarSettings()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="confirm-content">
+      <div class="confirm-icon" id="conf-icon">⚠️</div>
+      <div class="confirm-title" id="conf-title">Confirmar</div>
+      <div class="confirm-msg" id="conf-msg"></div>
+    </div>
+    <div class="confirm-btns">
+      <button class="btn btn-secondary" style="flex:1" onclick="resolveConfirm(false)">Cancelar</button>
+      <button class="btn btn-danger" style="flex:2" id="conf-ok" onclick="resolveConfirm(true)">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TOAST ══════════ -->
+<div id="toastContainer"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
