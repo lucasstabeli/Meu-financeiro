@@ -138,6 +138,7 @@
             <p class="advisor-msg" id="advisor-msg">Carregando...</p>
             <p class="advisor-value" id="advisor-value"></p>
             <p class="advisor-detail" id="advisor-detail"></p>
+            <button class="advisor-chat-btn" id="chat-btn">💬 Conversar com a Moedinha</button>
           </div>
         </div>
 
@@ -185,13 +186,18 @@
             <span>💸 Por fora</span>
             <span id="sum-extra">R$0</span>
           </div>
+          <div class="sum-row hidden" id="row-parcelas">
+            <span>📋 Parcelas mensais</span>
+            <span class="val-red" id="sum-parcelas">R$0</span>
+          </div>
+          <div class="sum-divider hidden" id="div-renda-livre"></div>
+          <div class="sum-row hidden" id="row-renda-livre">
+            <span>Renda livre</span>
+            <span id="sum-renda-livre">R$0</span>
+          </div>
           <div class="sum-row">
             <span>Gasto até agora</span>
             <span class="val-red" id="sum-gasto">R$0</span>
-          </div>
-          <div class="sum-row">
-            <span>Parcelas fixas/mês</span>
-            <span class="val-yellow" id="sum-parcelas">R$0</span>
           </div>
           <div class="sum-divider"></div>
           <div class="sum-row sum-total">
@@ -580,12 +586,41 @@
       </div>
       <div class="alloc-total" id="cfg-alloc-total">Total: 100%</div>
     </div>
+    <div class="form-group">
+      <label>Dia seguro para gastar <span class="sub-label">(opcional)</span></label>
+      <p class="field-hint">A Moedinha avisa pra aguardar até este dia antes de gastar — útil quando contas vencem no início do mês.</p>
+      <div class="currency-input">
+        <span>Dia</span>
+        <input type="number" id="cfg-dia-corte" placeholder="Ex: 10" inputmode="numeric" min="1" max="31">
+      </div>
+    </div>
     <button class="btn-secondary full-btn" id="export-btn">📤 Exportar dados</button>
     <button class="btn-danger full-btn" id="reset-btn">🗑️ Limpar todos os dados</button>
     <div class="sheet-actions">
       <button class="btn-secondary" id="cfg-cancel">Cancelar</button>
       <button class="btn-primary" id="cfg-ok">Salvar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: CHAT MOEDINHA -->
+<div id="modal-chat" class="chat-overlay hidden">
+  <div class="chat-topbar">
+    <button class="icon-btn" id="chat-close">←</button>
+    <div class="chat-topbar-info">
+      <span class="chat-topbar-coin">🪙</span>
+      <div>
+        <strong>Moedinha</strong>
+        <span class="chat-topbar-sub">Conselheira financeira</span>
+      </div>
+    </div>
+    <button class="icon-btn" id="chat-clear-btn" title="Nova conversa">🗑️</button>
+  </div>
+  <div class="chat-msgs" id="chat-msgs"></div>
+  <div class="chat-chips" id="chat-chips"></div>
+  <div class="chat-footer">
+    <input id="chat-input" type="text" placeholder="Ex: recebi 3000..." maxlength="200" autocomplete="off">
+    <button id="chat-send" class="chat-send-btn">↑</button>
   </div>
 </div>
 

@@ -9,10 +9,12 @@ const defaults = {
     nome: null,
     alocacao: { investir: 30, cofrinho: 20, gastar: 50 },
     rendaFixa: { salario: 0, valeRefeicao: 0, valeTransporte: 0 },
+    diaCorte: null,
   },
   transacoes: [],  // { id, tipo:'receita'|'gasto', valor, categoria?, descricao, data }
   parcelas: [],    // { id, descricao, valorParcela, total, pagas, dataInicio }
   objetivos: [],   // { id, tipo, nome, meta, atual }
+  chat: [],        // { role:'user'|'moedinha', text, ts, split? }
 };
 
 let appData = JSON.parse(localStorage.getItem(KEY) || 'null') || defaults;
@@ -158,34 +160,40 @@ function getAdvisor(mk) {
   const totalExtra  = receitasMes.reduce((s, t) => s + t.valor, 0);
   const totalReceita = totalRendaFixa + totalExtra;
 
-  const bucketInvestir = totalReceita * cfg.investir / 100;
-  const bucketCofrinho = totalReceita * cfg.cofrinho / 100;
-  const bucketGastar   = totalReceita * cfg.gastar   / 100;
-
   const parcelasAtivas = appData.parcelas.filter(p => p.pagas < p.total);
   const totalParcelas  = parcelasAtivas.reduce((s, p) => s + p.valorParcela, 0);
+
+  // Dívidas saem primeiro; o que sobra é dividido nos buckets
+  const rendaLivre = Math.max(0, totalReceita - totalParcelas);
+
+  const bucketInvestir = rendaLivre * cfg.investir / 100;
+  const bucketCofrinho = rendaLivre * cfg.cofrinho / 100;
+  const bucketGastar   = rendaLivre * cfg.gastar   / 100;
 
   const gastosMes  = appData.transacoes.filter(t => t.tipo === 'gasto' && mkOf(t.data) === mk);
   const totalGasto = gastosMes.reduce((s, t) => s + t.valor, 0);
 
-  const disponivel = bucketGastar - totalParcelas - totalGasto;
+  const disponivel = bucketGastar - totalGasto;
 
   const now = new Date();
   const [y, m] = mk.split('-').map(Number);
   const lastDay = new Date(y, m, 0).getDate();
   const diaHoje = (mk === nowMk()) ? now.getDate() : lastDay;
   const diasRest = Math.max(1, lastDay - diaHoje + 1);
-  const porDia = disponivel / diasRest;
+  const porDia = rendaLivre > 0 ? disponivel / diasRest : 0;
 
   const percGasto = bucketGastar > 0
-    ? Math.min(100, ((totalGasto + totalParcelas) / bucketGastar) * 100)
+    ? Math.min(100, (totalGasto / bucketGastar) * 100)
     : 0;
+
+  const debtRatio = totalReceita > 0 ? totalParcelas / totalReceita : 0;
 
   let status;
   if (totalReceita === 0) status = 'neutro';
+  else if (totalParcelas >= totalReceita) status = 'vermelho';
   else if (disponivel <= 0) status = 'vermelho';
-  else if (percGasto >= 80) status = 'vermelho';
-  else if (percGasto >= 60) status = 'amarelo';
+  else if (percGasto >= 80 || debtRatio >= 0.8) status = 'vermelho';
+  else if (percGasto >= 60 || debtRatio >= 0.6) status = 'amarelo';
   else status = 'verde';
 
   // Acumulado all-time: renda fixa conta em cada mês com atividade + mês atual
@@ -203,9 +211,10 @@ function getAdvisor(mk) {
 
   return {
     totalReceita, totalExtra, salario, valeRefeicao, valeTransporte,
+    rendaLivre,
     bucketInvestir, bucketCofrinho, bucketGastar,
     totalParcelas, totalGasto, disponivel, diasRest, porDia,
-    percGasto, status, acumInvestir, acumCofrinho,
+    percGasto, debtRatio, status, acumInvestir, acumCofrinho,
   };
 }
 
@@ -227,6 +236,11 @@ function renderHome() {
     el('advisor-msg').textContent = 'Configure seu salário e benefícios nas configurações (⚙️) para eu calcular seus limites.';
     el('advisor-value').textContent = '';
     el('advisor-detail').textContent = 'Ou toque em + para registrar uma renda extra';
+  } else if (d.totalParcelas >= d.totalReceita) {
+    el('badge-label').textContent = 'Dívidas críticas!';
+    el('advisor-msg').textContent = 'Suas parcelas superam toda sua renda. Priorize renegociar suas dívidas agora.';
+    el('advisor-value').textContent = fmt(d.totalParcelas - d.totalReceita) + ' além da sua renda';
+    el('advisor-detail').textContent = 'Sem renda livre este mês';
   } else if (d.status === 'vermelho') {
     if (d.disponivel <= 0) {
       el('badge-label').textContent = 'Limite esgotado!';
@@ -234,13 +248,17 @@ function renderHome() {
       el('advisor-value').textContent = fmt(Math.abs(d.disponivel)) + ' acima do limite';
     } else {
       el('badge-label').textContent = 'Cuidado!';
-      el('advisor-msg').textContent = 'Você está quase no limite. Gaste só com o essencial.';
+      el('advisor-msg').textContent = d.debtRatio >= 0.8
+        ? `Suas parcelas consomem ${Math.round(d.debtRatio * 100)}% da sua renda. Renda livre muito baixa.`
+        : 'Você está quase no limite. Gaste só com o essencial.';
       el('advisor-value').textContent = 'Restam apenas ' + fmt(d.disponivel);
     }
     el('advisor-detail').textContent = d.diasRest + ' dias restantes no mês';
   } else if (d.status === 'amarelo') {
-    el('badge-label').textContent = 'Atenção';
-    el('advisor-msg').textContent = 'Você já gastou bastante. Ainda dá, mas pense bem antes de gastar.';
+    el('badge-label').textContent = d.debtRatio >= 0.6 ? 'Dívidas altas' : 'Atenção';
+    el('advisor-msg').textContent = d.debtRatio >= 0.6
+      ? `Parcelas consomem ${Math.round(d.debtRatio * 100)}% da sua renda. Priorize quitar as menores.`
+      : 'Você já gastou bastante. Ainda dá, mas pense bem antes de gastar.';
     el('advisor-value').textContent = 'Pode gastar mais ' + fmt(d.disponivel);
     el('advisor-detail').textContent = '~' + fmt(Math.max(0, d.porDia)) + '/dia pelos próximos ' + d.diasRest + ' dias';
   } else {
@@ -268,8 +286,19 @@ function renderHome() {
   showSubRow('row-vr',      'sum-vr',      d.valeRefeicao);
   showSubRow('row-vt',      'sum-vt',      d.valeTransporte);
   showSubRow('row-extra',   'sum-extra',   d.totalExtra);
-  el('sum-gasto').textContent     = fmt(d.totalGasto);
-  el('sum-parcelas').textContent  = fmt(d.totalParcelas);
+
+  // Parcelas como prioridade (deduções antes do split)
+  const temParcelas = d.totalParcelas > 0;
+  el('row-parcelas').classList.toggle('hidden', !temParcelas);
+  el('div-renda-livre').classList.toggle('hidden', !temParcelas);
+  el('row-renda-livre').classList.toggle('hidden', !temParcelas);
+  if (temParcelas) {
+    el('sum-parcelas').textContent = fmt(d.totalParcelas);
+    el('sum-renda-livre').textContent = fmt(d.rendaLivre);
+    el('sum-renda-livre').className = d.rendaLivre > 0 ? 'val-green' : 'val-red';
+  }
+
+  el('sum-gasto').textContent = fmt(d.totalGasto);
   const dispEl = el('sum-disponivel');
   dispEl.textContent = fmt(d.disponivel);
   dispEl.className = d.disponivel >= 0 ? 'val-green' : 'val-red';
@@ -278,7 +307,7 @@ function renderHome() {
   prog.style.width = Math.min(100, d.percGasto) + '%';
   prog.className = 'prog-bar ' + (d.percGasto >= 80 ? 'p-red' : d.percGasto >= 60 ? 'p-yellow' : 'p-green');
 
-  el('prog-left').textContent  = fmt(d.totalGasto + d.totalParcelas) + ' gasto';
+  el('prog-left').textContent  = fmt(d.totalGasto) + ' gasto';
   el('prog-right').textContent = fmt(Math.max(0, d.disponivel)) + ' restando';
 
   // Acumulado
@@ -651,9 +680,10 @@ el('settings-btn').addEventListener('click', () => {
   el('cfg-cofrinho').value = appData.config.alocacao.cofrinho;
   el('cfg-gastar').value   = appData.config.alocacao.gastar;
   const rf = appData.config.rendaFixa || {};
-  el('cfg-salario').value = rf.salario       || '';
-  el('cfg-vr').value      = rf.valeRefeicao  || '';
-  el('cfg-vt').value      = rf.valeTransporte || '';
+  el('cfg-salario').value    = rf.salario       || '';
+  el('cfg-vr').value         = rf.valeRefeicao  || '';
+  el('cfg-vt').value         = rf.valeTransporte || '';
+  el('cfg-dia-corte').value  = appData.config.diaCorte || '';
   updateAllocTotal(['cfg-investir', 'cfg-cofrinho', 'cfg-gastar'], 'cfg-alloc-total');
   bindAllocWatcher(['cfg-investir', 'cfg-cofrinho', 'cfg-gastar'], 'cfg-alloc-total');
   openModal('modal-settings');
@@ -674,6 +704,7 @@ el('cfg-ok').addEventListener('click', () => {
     valeRefeicao:   parseFloat(el('cfg-vr').value)      || 0,
     valeTransporte: parseFloat(el('cfg-vt').value)      || 0,
   };
+  appData.config.diaCorte = parseInt(el('cfg-dia-corte').value) || null;
   save();
   closeModal('modal-settings');
   renderHome();
@@ -719,6 +750,279 @@ function showToast(msg) {
   clearTimeout(t._t);
   t._t = setTimeout(() => t.classList.remove('show'), 3000);
 }
+
+// ── CHAT ─────────────────────────────────────────────────
+let chatPending = null; // { valor, tipo }
+
+function openChat() {
+  if (!appData.chat) appData.chat = [];
+  if (appData.chat.length === 0) {
+    const d = getAdvisor();
+    const hora = new Date().getHours();
+    const s = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+    const nome = appData.config.nome ? `, **${appData.config.nome}**` : '';
+    let intro;
+    if (d.totalReceita === 0) {
+      intro = `${s}${nome}! 👋 Eu sou a Moedinha, sua conselheira financeira.\n\nSempre que você receber o salário ou uma renda extra, me conta aqui que eu te digo exatamente como dividir! 💰`;
+    } else {
+      const debtWarn = d.debtRatio > 0.5
+        ? `Suas parcelas consomem **${Math.round(d.debtRatio * 100)}%** da renda, então sua renda livre é **${fmt(d.rendaLivre)}**.`
+        : `Você tem **${fmt(d.disponivel)}** disponíveis para gastar este mês.`;
+      intro = `${s}${nome}! 👋 ${debtWarn}\n\nMe conta se recebeu alguma renda nova, ou use os atalhos abaixo! 💰`;
+    }
+    chatPushMsg('moedinha', intro);
+  }
+  el('modal-chat').classList.remove('hidden');
+  setTimeout(() => {
+    renderChatMessages();
+    const m = el('chat-msgs');
+    if (m) m.scrollTop = m.scrollHeight;
+  }, 50);
+}
+
+function closeChat() {
+  el('modal-chat').classList.add('hidden');
+}
+
+function chatPushMsg(role, text, extra) {
+  if (!appData.chat) appData.chat = [];
+  appData.chat.push({ role, text, ts: Date.now(), ...extra });
+  if (appData.chat.length > 80) appData.chat = appData.chat.slice(-80);
+  save();
+  renderChatMessages();
+  setTimeout(() => {
+    const m = el('chat-msgs');
+    if (m) m.scrollTop = m.scrollHeight;
+  }, 50);
+}
+
+function renderChatMessages() {
+  const container = el('chat-msgs');
+  if (!container) return;
+  const msgs = appData.chat || [];
+
+  container.innerHTML = msgs.map((msg, i) => {
+    const isUser = msg.role === 'user';
+    const timeStr = new Date(msg.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    let html = msg.text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+
+    if (msg.split) {
+      const sp = msg.split;
+      html += `<div class="chat-split-card">
+        <div class="chat-split-row"><span>📈 Investir (${sp.pi}%)</span><strong>${sp.investir}</strong></div>
+        <div class="chat-split-row"><span>🐷 Cofrinho (${sp.pc}%)</span><strong>${sp.cofrinho}</strong></div>
+        <div class="chat-split-row"><span>💳 Para gastar (${sp.pg}%)</span><strong>${sp.gastar}</strong></div>
+        ${sp.parcelas ? `<div class="chat-split-row chat-split-sep"><span>📋 − Parcelas</span><strong class="val-red">−${sp.parcelas}</strong></div>` : ''}
+        ${sp.livre ? `<div class="chat-split-row"><span>✅ Renda livre</span><strong class="val-green">${sp.livre}</strong></div>` : ''}
+      </div>`;
+      if (i === msgs.length - 1 && chatPending) {
+        html += `<button class="chat-confirm-btn" id="chat-confirm-btn">✅ Registrei no app — pode zerar!</button>`;
+      }
+    }
+
+    if (isUser) {
+      return `<div class="chat-row chat-row-user">
+        <div class="chat-bubble chat-bubble-user">${html}</div>
+        <span class="chat-time">${timeStr}</span>
+      </div>`;
+    }
+    return `<div class="chat-row chat-row-moedinha">
+      <span class="chat-avatar">🪙</span>
+      <div>
+        <div class="chat-bubble chat-bubble-moedinha">${html}</div>
+        <span class="chat-time">${timeStr}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const confirmBtn = el('chat-confirm-btn');
+  if (confirmBtn) confirmBtn.addEventListener('click', chatHandleConfirm);
+
+  renderChatChips();
+}
+
+function renderChatChips() {
+  const chips = el('chat-chips');
+  if (!chips) return;
+  let html = '';
+  if (chatPending) {
+    html += `<button class="chat-chip chat-chip-primary" data-chip="confirmar">✅ Já coloquei no app</button>`;
+    html += `<button class="chat-chip" data-chip="saldo">📊 Como estou?</button>`;
+  } else {
+    html += `<button class="chat-chip" data-chip="salario">💰 Recebi o salário</button>`;
+    html += `<button class="chat-chip" data-chip="extra">🎉 Recebi um extra</button>`;
+    html += `<button class="chat-chip" data-chip="saldo">📊 Como estou?</button>`;
+  }
+  chips.innerHTML = html;
+  chips.querySelectorAll('.chat-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const c = btn.dataset.chip;
+      if (c === 'confirmar') {
+        chatPushMsg('user', 'Já coloquei no app!');
+        setTimeout(chatHandleConfirm, 350);
+      } else if (c === 'saldo') {
+        chatPushMsg('user', 'Como estou?');
+        setTimeout(chatHandleStatus, 350);
+      } else if (c === 'salario') {
+        el('chat-input').focus();
+        el('chat-input').placeholder = 'Ex: recebi 3000';
+      } else if (c === 'extra') {
+        el('chat-input').focus();
+        el('chat-input').placeholder = 'Ex: recebi 500 de freela';
+      }
+    });
+  });
+}
+
+function chatSend() {
+  const input = el('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.placeholder = 'Ex: recebi 3000...';
+  chatPushMsg('user', text);
+  setTimeout(() => {
+    const intent = chatDetectIntent(text);
+    if      (intent.type === 'income')    chatHandleIncome(intent.amount, 'salario');
+    else if (intent.type === 'extra')     chatHandleIncome(intent.amount, 'extra');
+    else if (intent.type === 'confirm')   chatHandleConfirm();
+    else if (intent.type === 'status')    chatHandleStatus();
+    else if (intent.type === 'spendDate') chatHandleSpendDate();
+    else                                  chatHandleUnknown();
+  }, 350);
+}
+
+function chatDetectIntent(text) {
+  const t = text.toLowerCase().trim();
+  const numMatch = t.match(/(\d+(?:[.,]\d+)?)/);
+  const amount = numMatch ? parseFloat(numMatch[1].replace(',', '.')) : null;
+
+  const isIncome  = /recebi|ganhei|caiu|entrou|salário|salario|pagaram|me pagou/.test(t);
+  const isExtra   = /extra|freela|bico|freelance|por fora|gorjeta|bonus|bônus/.test(t);
+  const isConfirm = /coloquei|distribuí|distribui|feito|pronto|registrei|separei|ok feito|já fiz/.test(t);
+  const isStatus  = /como (estou|tô|to)|quanto tenho|saldo|disponível|disponivel|situaç|posso gastar/.test(t);
+  const isDate    = /quando posso|a partir de quando|que dia|dia corte|dia seguro/.test(t);
+
+  if (amount && isIncome) return { type: isExtra ? 'extra' : 'income', amount };
+  if (amount && isExtra)  return { type: 'extra', amount };
+  if (isConfirm) return { type: 'confirm' };
+  if (isStatus)  return { type: 'status' };
+  if (isDate)    return { type: 'spendDate' };
+  return { type: 'unknown' };
+}
+
+function chatHandleIncome(valor, tipo) {
+  chatPending = { valor, tipo };
+  const d   = getAdvisor();
+  const cfg = appData.config.alocacao;
+  const investir = valor * cfg.investir / 100;
+  const cofrinho = valor * cfg.cofrinho / 100;
+  const gastar   = valor * cfg.gastar   / 100;
+
+  let parcStr = null, livreStr = null;
+  if (d.totalParcelas > 0) {
+    parcStr  = fmt(d.totalParcelas);
+    livreStr = fmt(Math.max(0, gastar - d.totalParcelas));
+  }
+
+  let text = tipo === 'extra'
+    ? `Boa, mais **${fmt(valor)}**! 🎉 Aqui está como dividir:`
+    : `**${fmt(valor)}** recebidos! 💰 Veja como dividir:`;
+
+  const diaCorte = appData.config.diaCorte;
+  if (diaCorte) {
+    const hoje = new Date().getDate();
+    if (hoje < diaCorte) {
+      text += `\n\n📅 Aguarda até o **dia ${diaCorte}** para começar a gastar — faltam ${diaCorte - hoje} dias. Paga as contas primeiro!`;
+    } else {
+      text += `\n\n✅ Já passou o dia ${diaCorte}, pode gastar tranquilo!`;
+    }
+  }
+
+  text += `\n\nRegistra no app e toca em **"pode zerar!"** quando fizer!`;
+
+  chatPushMsg('moedinha', text, {
+    split: { pi: cfg.investir, pc: cfg.cofrinho, pg: cfg.gastar,
+      investir: fmt(investir), cofrinho: fmt(cofrinho), gastar: fmt(gastar),
+      parcelas: parcStr, livre: livreStr },
+  });
+}
+
+function chatHandleConfirm() {
+  if (!chatPending) {
+    chatPushMsg('moedinha', 'Não tem nada pendente ainda. Me conta quando você receber uma renda! 😊');
+    return;
+  }
+  const { valor, tipo } = chatPending;
+  appData.transacoes.push({ id: uid(), tipo: 'receita', valor, descricao: tipo === 'extra' ? 'Renda extra' : 'Salário', data: today() });
+  save();
+  if (currentView === 'home') renderHome();
+  chatPending = null;
+  const ok = ['**Perfeito!** ✅ Dinheiro registrado. Agora é foco no objetivo! 🚀', '**Feito!** ✅ Tudo no lugar certo. Bom mês! 💪', '**Ótimo!** ✅ Zerado! Você tá no caminho certo. 🎯'];
+  chatPushMsg('moedinha', ok[Math.floor(Math.random() * ok.length)]);
+}
+
+function chatHandleStatus() {
+  const d = getAdvisor();
+  if (d.totalReceita === 0) {
+    chatPushMsg('moedinha', 'Ainda não tem renda registrada este mês. Me conta quando você receber! 💰');
+    return;
+  }
+  const pct = Math.round(d.percGasto);
+  let text;
+  if (d.totalParcelas >= d.totalReceita) {
+    text = `⚠️ Suas parcelas (**${fmt(d.totalParcelas)}**) superam sua renda!\n\nPrioridade urgente: renegociar as dívidas. Sem renda livre este mês.`;
+  } else if (d.status === 'verde') {
+    text = `Tudo certo! 🟢 Você usou **${pct}%** do limite.\n\nDisponível para gastar: **${fmt(d.disponivel)}**\n~**${fmt(d.porDia)}/dia** pelos próximos ${d.diasRest} dias.`;
+  } else if (d.status === 'amarelo') {
+    text = `Atenção! 🟡 Você já usou **${pct}%** do limite.\n\nAinda tem **${fmt(d.disponivel)}** — mas com ${d.diasRest} dias restantes, não dá pra forçar.`;
+  } else {
+    text = d.disponivel <= 0
+      ? `Eita! 🔴 Você estourou o limite em **${fmt(Math.abs(d.disponivel))}** este mês.\n\nSegura as compras até o fim do mês. 🛑`
+      : `Cuidado! 🔴 Usou **${pct}%** do limite. Restam só **${fmt(d.disponivel)}**.\n\nGasta só no essencial pelos próximos ${d.diasRest} dias.`;
+  }
+  chatPushMsg('moedinha', text);
+}
+
+function chatHandleSpendDate() {
+  const diaCorte = appData.config.diaCorte;
+  if (!diaCorte) {
+    chatPushMsg('moedinha', 'Você ainda não configurou um dia seguro. Vai em ⚙️ Configurações e preenche o **"Dia seguro para gastar"** — é o dia em que todas as suas contas já estão pagas!');
+    return;
+  }
+  const hoje = new Date().getDate();
+  if (hoje < diaCorte) {
+    chatPushMsg('moedinha', `📅 Aguarda até o **dia ${diaCorte}** para gastar à vontade. Faltam **${diaCorte - hoje} dias**. Segura a emoção! 😄`);
+  } else {
+    chatPushMsg('moedinha', `✅ Já passou do dia ${diaCorte}! Pode gastar tranquilo. Você tem **${fmt(getAdvisor().disponivel)}** disponíveis.`);
+  }
+}
+
+function chatHandleUnknown() {
+  const dicas = [
+    'Não entendi bem. 😅 Tenta assim:\n\n• "recebi 3000" — pra eu dividir\n• "como estou?" — pra ver seu saldo',
+    'Hm, não peguei! Me diz um valor que você recebeu e eu te ajudo a dividir. 💰',
+    'Não entendi, mas tudo bem! Usa os atalhos abaixo pra me contar o que aconteceu. 😊',
+  ];
+  chatPushMsg('moedinha', dicas[Math.floor(Math.random() * dicas.length)]);
+}
+
+el('chat-btn').addEventListener('click', openChat);
+el('mascot-svg').addEventListener('click', openChat);
+el('mascot-svg').style.cursor = 'pointer';
+el('chat-close').addEventListener('click', closeChat);
+el('chat-clear-btn').addEventListener('click', () => {
+  if (!confirm('Limpar toda a conversa?')) return;
+  appData.chat = [];
+  chatPending = null;
+  save();
+  closeChat();
+});
+el('chat-send').addEventListener('click', chatSend);
+el('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') chatSend(); });
 
 // ── INIT ─────────────────────────────────────────────────
 function init() {
