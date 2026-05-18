@@ -1,11 +1,11 @@
 {
-  "name": "Wealth Pro",
-  "short_name": "Wealth Pro",
-  "description": "Gestão financeira pessoal",
+  "name": "Conselheiro Financeiro",
+  "short_name": "Conselheiro",
+  "description": "Seu conselheiro financeiro pessoal",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#07080f",
-  "theme_color": "#07080f",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
   "orientation": "portrait-primary",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable any" }
