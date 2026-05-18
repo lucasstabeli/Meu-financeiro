@@ -72,13 +72,73 @@
         </header>
 
         <div class="advisor-card" id="advisor-card">
-          <div class="advisor-badge" id="advisor-badge">
-            <span class="badge-dot" id="badge-dot"></span>
-            <span id="badge-label">Calculando...</span>
+          <div class="advisor-mascot">
+            <svg id="mascot-svg" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="mascot-grad" cx="38%" cy="33%" r="65%">
+                  <stop offset="0%"   stop-color="#FEF08A"/>
+                  <stop offset="50%"  stop-color="#FCD34D"/>
+                  <stop offset="100%" stop-color="#F59E0B"/>
+                </radialGradient>
+              </defs>
+              <!-- Coin 3D edge -->
+              <circle cx="40" cy="42" r="35" fill="#D97706"/>
+              <!-- Coin face -->
+              <circle cx="40" cy="40" r="35" fill="url(#mascot-grad)"/>
+              <!-- Embossed ring -->
+              <circle cx="40" cy="40" r="28" fill="none" stroke="#D97706" stroke-width="1.5" opacity="0.35"/>
+
+              <!-- NEUTRO: waiting -->
+              <g class="face face-neutro">
+                <circle cx="30" cy="37" r="3.5" fill="#92400E"/>
+                <circle cx="50" cy="37" r="3.5" fill="#92400E"/>
+                <path d="M31,50 Q40,54 49,50" stroke="#92400E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              </g>
+
+              <!-- VERDE: happy :) -->
+              <g class="face face-verde">
+                <path d="M26,37 Q30,31 34,37" stroke="#92400E" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <path d="M46,37 Q50,31 54,37" stroke="#92400E" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <path d="M28,49 Q40,61 52,49" stroke="#92400E" stroke-width="2.5" fill="rgba(180,83,9,0.12)" stroke-linecap="round"/>
+                <ellipse cx="20" cy="43" rx="5.5" ry="3.5" fill="#FDA4AF" opacity="0.5"/>
+                <ellipse cx="60" cy="43" rx="5.5" ry="3.5" fill="#FDA4AF" opacity="0.5"/>
+              </g>
+
+              <!-- AMARELO: worried :/ -->
+              <g class="face face-amarelo">
+                <circle cx="30" cy="38" r="3.5" fill="#92400E"/>
+                <circle cx="50" cy="38" r="3.5" fill="#92400E"/>
+                <path d="M24,28 L31,32" stroke="#92400E" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M49,32 L56,28" stroke="#92400E" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M30,52 Q35,48 40,51 Q45,48 50,52" stroke="#92400E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <!-- sweat drop -->
+                <path d="M64,19 Q67.5,25 64,30 Q59.5,26.5 59.5,21 Z" fill="#93C5FD" opacity="0.8"/>
+              </g>
+
+              <!-- VERMELHO: scared D: -->
+              <g class="face face-vermelho">
+                <circle cx="30" cy="36" r="5.5" fill="#92400E"/>
+                <circle cx="50" cy="36" r="5.5" fill="#92400E"/>
+                <circle cx="28" cy="34" r="2"   fill="white" opacity="0.85"/>
+                <circle cx="48" cy="34" r="2"   fill="white" opacity="0.85"/>
+                <path d="M22,24 L31,29" stroke="#92400E" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M49,29 L58,24" stroke="#92400E" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M29,53 Q40,45 51,53" stroke="#92400E" stroke-width="2" fill="rgba(146,64,14,0.2)" stroke-linecap="round"/>
+              </g>
+
+              <!-- Shine highlight -->
+              <ellipse cx="27" cy="21" rx="11" ry="6" fill="white" opacity="0.22" transform="rotate(-25 27 21)"/>
+            </svg>
           </div>
-          <p class="advisor-msg" id="advisor-msg">Carregando...</p>
-          <p class="advisor-value" id="advisor-value"></p>
-          <p class="advisor-detail" id="advisor-detail"></p>
+          <div class="advisor-content">
+            <div class="advisor-badge" id="advisor-badge">
+              <span class="badge-dot" id="badge-dot"></span>
+              <span id="badge-label">Calculando...</span>
+            </div>
+            <p class="advisor-msg" id="advisor-msg">Carregando...</p>
+            <p class="advisor-value" id="advisor-value"></p>
+            <p class="advisor-detail" id="advisor-detail"></p>
+          </div>
         </div>
 
         <div class="section-label">Seus buckets este mês</div>
@@ -106,8 +166,24 @@
         <div class="section-label">Resumo do mês</div>
         <div class="summary-card">
           <div class="sum-row">
-            <span>Renda recebida</span>
+            <span>Renda deste mês</span>
             <span class="val-green" id="sum-renda">R$0</span>
+          </div>
+          <div class="sum-sub-row hidden" id="row-salario">
+            <span>💼 Salário</span>
+            <span id="sum-salario">R$0</span>
+          </div>
+          <div class="sum-sub-row hidden" id="row-vr">
+            <span>🍽️ Vale Refeição</span>
+            <span id="sum-vr">R$0</span>
+          </div>
+          <div class="sum-sub-row hidden" id="row-vt">
+            <span>🚌 Vale Transporte</span>
+            <span id="sum-vt">R$0</span>
+          </div>
+          <div class="sum-sub-row hidden" id="row-extra">
+            <span>💸 Por fora</span>
+            <span id="sum-extra">R$0</span>
           </div>
           <div class="sum-row">
             <span>Gasto até agora</span>
@@ -238,8 +314,8 @@
   <div id="fab-container">
     <div id="fab-menu" class="hidden">
       <button class="fab-opt" id="fab-receita">
-        <span class="fab-opt-icon">💰</span>
-        <span>Recebi dinheiro</span>
+        <span class="fab-opt-icon">💸</span>
+        <span>Renda por fora</span>
       </button>
       <button class="fab-opt" id="fab-gasto">
         <span class="fab-opt-icon">🛒</span>
@@ -280,7 +356,7 @@
 <div id="modal-receita" class="overlay hidden">
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <h3>💰 Recebi dinheiro!</h3>
+    <h3>💸 Renda por fora</h3>
     <div class="form-group">
       <label>Quanto você recebeu?</label>
       <div class="currency-input large">
@@ -290,7 +366,7 @@
     </div>
     <div class="form-group">
       <label>Descrição (opcional)</label>
-      <input type="text" id="receita-desc" placeholder="Ex: Salário, Freelance..." maxlength="50">
+      <input type="text" id="receita-desc" placeholder="Ex: Freelance, bico, venda..." maxlength="50">
     </div>
     <div id="split-preview" class="split-preview hidden">
       <p class="split-label">Assim vai ser dividido:</p>
@@ -450,6 +526,32 @@
     <div class="form-group">
       <label>Seu nome</label>
       <input type="text" id="cfg-nome" maxlength="20">
+    </div>
+    <div class="form-group">
+      <label>Renda fixa mensal</label>
+      <div class="renda-fixa-grid">
+        <div>
+          <span class="sub-label">💼 Salário</span>
+          <div class="currency-input">
+            <span>R$</span>
+            <input type="number" id="cfg-salario" placeholder="0,00" inputmode="decimal" min="0">
+          </div>
+        </div>
+        <div>
+          <span class="sub-label">🍽️ Vale Refeição</span>
+          <div class="currency-input">
+            <span>R$</span>
+            <input type="number" id="cfg-vr" placeholder="0,00" inputmode="decimal" min="0">
+          </div>
+        </div>
+        <div>
+          <span class="sub-label">🚌 Vale Transporte</span>
+          <div class="currency-input">
+            <span>R$</span>
+            <input type="number" id="cfg-vt" placeholder="0,00" inputmode="decimal" min="0">
+          </div>
+        </div>
+      </div>
     </div>
     <div class="form-group">
       <label>Divisão da renda</label>

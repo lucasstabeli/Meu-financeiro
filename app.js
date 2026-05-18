@@ -5,7 +5,11 @@ const KEY = 'conselheiro_v1';
 
 const defaults = {
   version: 1,
-  config: { nome: null, alocacao: { investir: 30, cofrinho: 20, gastar: 50 } },
+  config: {
+    nome: null,
+    alocacao: { investir: 30, cofrinho: 20, gastar: 50 },
+    rendaFixa: { salario: 0, valeRefeicao: 0, valeTransporte: 0 },
+  },
   transacoes: [],  // { id, tipo:'receita'|'gasto', valor, categoria?, descricao, data }
   parcelas: [],    // { id, descricao, valorParcela, total, pagas, dataInicio }
   objetivos: [],   // { id, tipo, nome, meta, atual }
@@ -144,9 +148,15 @@ document.querySelectorAll('.overlay').forEach(o => {
 function getAdvisor(mk) {
   mk = mk || nowMk();
   const cfg = appData.config.alocacao;
+  const rf = appData.config.rendaFixa || {};
+  const salario       = rf.salario       || 0;
+  const valeRefeicao  = rf.valeRefeicao  || 0;
+  const valeTransporte = rf.valeTransporte || 0;
+  const totalRendaFixa = salario + valeRefeicao + valeTransporte;
 
   const receitasMes = appData.transacoes.filter(t => t.tipo === 'receita' && mkOf(t.data) === mk);
-  const totalReceita = receitasMes.reduce((s, t) => s + t.valor, 0);
+  const totalExtra  = receitasMes.reduce((s, t) => s + t.valor, 0);
+  const totalReceita = totalRendaFixa + totalExtra;
 
   const bucketInvestir = totalReceita * cfg.investir / 100;
   const bucketCofrinho = totalReceita * cfg.cofrinho / 100;
@@ -178,15 +188,22 @@ function getAdvisor(mk) {
   else if (percGasto >= 60) status = 'amarelo';
   else status = 'verde';
 
-  // Acumulado all-time
-  const totalReceitaAll = appData.transacoes
-    .filter(t => t.tipo === 'receita')
-    .reduce((s, t) => s + t.valor, 0);
+  // Acumulado all-time: renda fixa conta em cada mês com atividade + mês atual
+  const allMks = new Set(appData.transacoes.map(t => mkOf(t.data)));
+  allMks.add(nowMk());
+  let totalReceitaAll = 0;
+  allMks.forEach(monthKey => {
+    totalReceitaAll += totalRendaFixa;
+    totalReceitaAll += appData.transacoes
+      .filter(t => t.tipo === 'receita' && mkOf(t.data) === monthKey)
+      .reduce((s, t) => s + t.valor, 0);
+  });
   const acumInvestir = totalReceitaAll * cfg.investir / 100;
   const acumCofrinho = totalReceitaAll * cfg.cofrinho / 100;
 
   return {
-    totalReceita, bucketInvestir, bucketCofrinho, bucketGastar,
+    totalReceita, totalExtra, salario, valeRefeicao, valeTransporte,
+    bucketInvestir, bucketCofrinho, bucketGastar,
     totalParcelas, totalGasto, disponivel, diasRest, porDia,
     percGasto, status, acumInvestir, acumCofrinho,
   };
@@ -206,10 +223,10 @@ function renderHome() {
   el('badge-dot').className = 'badge-dot dot-' + d.status;
 
   if (d.totalReceita === 0) {
-    el('badge-label').textContent = 'Aguardando renda';
-    el('advisor-msg').textContent = 'Registre sua renda para eu calcular quanto você pode gastar este mês.';
+    el('badge-label').textContent = 'Sem renda configurada';
+    el('advisor-msg').textContent = 'Configure seu salário e benefícios nas configurações (⚙️) para eu calcular seus limites.';
     el('advisor-value').textContent = '';
-    el('advisor-detail').textContent = 'Toque no + para registrar';
+    el('advisor-detail').textContent = 'Ou toque em + para registrar uma renda extra';
   } else if (d.status === 'vermelho') {
     if (d.disponivel <= 0) {
       el('badge-label').textContent = 'Limite esgotado!';
@@ -242,7 +259,15 @@ function renderHome() {
   el('bp-spend').textContent  = appData.config.alocacao.gastar + '%';
 
   // Summary
-  el('sum-renda').textContent     = fmt(d.totalReceita);
+  el('sum-renda').textContent = fmt(d.totalReceita);
+  function showSubRow(rowId, valId, val) {
+    el(rowId).classList.toggle('hidden', val <= 0);
+    el(valId).textContent = fmt(val);
+  }
+  showSubRow('row-salario', 'sum-salario', d.salario);
+  showSubRow('row-vr',      'sum-vr',      d.valeRefeicao);
+  showSubRow('row-vt',      'sum-vt',      d.valeTransporte);
+  showSubRow('row-extra',   'sum-extra',   d.totalExtra);
   el('sum-gasto').textContent     = fmt(d.totalGasto);
   el('sum-parcelas').textContent  = fmt(d.totalParcelas);
   const dispEl = el('sum-disponivel');
@@ -470,8 +495,9 @@ el('receita-ok').addEventListener('click', () => {
   el('receita-desc').value  = '';
   el('split-preview').classList.add('hidden');
   renderHome();
+  triggerMascotReaction('income');
   const g = fmt(v * appData.config.alocacao.gastar / 100);
-  showToast('💰 Renda registrada! ' + g + ' disponível para gastar.');
+  showToast('💸 Renda registrada! ' + g + ' disponível para gastar.');
 });
 
 // ── MODAL: GASTO ─────────────────────────────────────────
@@ -487,6 +513,7 @@ el('gasto-ok').addEventListener('click', () => {
   el('gasto-valor').value = '';
   el('gasto-desc').value  = '';
   renderHome();
+  triggerMascotReaction('expense');
   showToast('✅ Gasto registrado!');
 });
 
@@ -623,6 +650,10 @@ el('settings-btn').addEventListener('click', () => {
   el('cfg-investir').value = appData.config.alocacao.investir;
   el('cfg-cofrinho').value = appData.config.alocacao.cofrinho;
   el('cfg-gastar').value   = appData.config.alocacao.gastar;
+  const rf = appData.config.rendaFixa || {};
+  el('cfg-salario').value = rf.salario       || '';
+  el('cfg-vr').value      = rf.valeRefeicao  || '';
+  el('cfg-vt').value      = rf.valeTransporte || '';
   updateAllocTotal(['cfg-investir', 'cfg-cofrinho', 'cfg-gastar'], 'cfg-alloc-total');
   bindAllocWatcher(['cfg-investir', 'cfg-cofrinho', 'cfg-gastar'], 'cfg-alloc-total');
   openModal('modal-settings');
@@ -638,6 +669,11 @@ el('cfg-ok').addEventListener('click', () => {
   if (i + c + g !== 100) { showToast('As porcentagens precisam somar 100%'); return; }
   appData.config.nome = nome;
   appData.config.alocacao = { investir: i, cofrinho: c, gastar: g };
+  appData.config.rendaFixa = {
+    salario:        parseFloat(el('cfg-salario').value) || 0,
+    valeRefeicao:   parseFloat(el('cfg-vr').value)      || 0,
+    valeTransporte: parseFloat(el('cfg-vt').value)      || 0,
+  };
   save();
   closeModal('modal-settings');
   renderHome();
@@ -658,6 +694,17 @@ el('reset-btn').addEventListener('click', () => {
   localStorage.removeItem(KEY);
   location.reload();
 });
+
+// ── MASCOT ───────────────────────────────────────────
+function triggerMascotReaction(type) {
+  const m = el('mascot-svg');
+  m.classList.remove('react-jump', 'react-shake');
+  void m.offsetWidth; // force reflow to restart animation
+  m.classList.add(type === 'income' ? 'react-jump' : 'react-shake');
+  m.addEventListener('animationend', () => {
+    m.classList.remove('react-jump', 'react-shake');
+  }, { once: true });
+}
 
 // ── TOAST ────────────────────────────────────────────────
 function showToast(msg) {
