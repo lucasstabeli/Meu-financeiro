@@ -1095,6 +1095,68 @@ input:focus, select:focus { outline: none; }
 /* ── HIDDEN UTIL ─────────────────────────────────────── */
 .hidden { display: none !important; }
 
+/* ── SECTION LABEL WITH ACTION ──────────────────────── */
+.section-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-add-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pri-lit);
+  background: rgba(124,58,237,.12);
+  border: 1px solid rgba(124,58,237,.3);
+  border-radius: 99px;
+  padding: 4px 12px;
+}
+
+/* ── CONTAS FIXAS LIST ───────────────────────────────── */
+.fixas-empty {
+  text-align: center;
+  color: var(--sub);
+  font-size: 13px;
+  padding: 16px 20px;
+}
+
+.fixa-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--surf2);
+}
+
+.fixa-ico { font-size: 20px; flex-shrink: 0; }
+
+.fixa-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fixa-desc {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fixa-cat {
+  font-size: 11px;
+  color: var(--sub);
+}
+
+.fixa-val {
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
 /* ── ADVISOR CHAT BUTTON ─────────────────────────────── */
 .advisor-chat-btn {
   margin-top: 12px;

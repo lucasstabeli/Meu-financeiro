@@ -190,6 +190,10 @@
             <span>📋 Parcelas mensais</span>
             <span class="val-red" id="sum-parcelas">R$0</span>
           </div>
+          <div class="sum-row hidden" id="row-fixas">
+            <span>🔒 Contas fixas</span>
+            <span class="val-red" id="sum-fixas">R$0</span>
+          </div>
           <div class="sum-divider hidden" id="div-renda-livre"></div>
           <div class="sum-row hidden" id="row-renda-livre">
             <span>Renda livre</span>
@@ -212,6 +216,12 @@
             <span id="prog-right">R$0 restando</span>
           </div>
         </div>
+
+        <div class="section-label section-label-row">
+          <span>Contas fixas mensais</span>
+          <button class="section-add-btn" id="add-fixa-btn">＋ Adicionar</button>
+        </div>
+        <div id="fixas-list"></div>
 
         <div class="section-label">Acumulado total</div>
         <div class="acum-row">
@@ -330,6 +340,10 @@
       <button class="fab-opt" id="fab-parcela-new">
         <span class="fab-opt-icon">📋</span>
         <span>Nova parcela fixa</span>
+      </button>
+      <button class="fab-opt" id="fab-fixa">
+        <span class="fab-opt-icon">🔒</span>
+        <span>Conta fixa mensal</span>
       </button>
     </div>
     <button id="fab" class="fab" aria-label="Adicionar">＋</button>
@@ -599,6 +613,42 @@
     <div class="sheet-actions">
       <button class="btn-secondary" id="cfg-cancel">Cancelar</button>
       <button class="btn-primary" id="cfg-ok">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONTA FIXA -->
+<div id="modal-fixa" class="overlay hidden">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>🔒 Conta fixa mensal</h3>
+    <div class="form-group">
+      <label>O que é?</label>
+      <input type="text" id="fixa-desc" placeholder="Ex: Aluguel, Internet, Academia..." maxlength="50">
+    </div>
+    <div class="form-group">
+      <label>Valor por mês</label>
+      <div class="currency-input">
+        <span>R$</span>
+        <input type="number" id="fixa-valor" placeholder="0,00" inputmode="decimal">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Categoria</label>
+      <select id="fixa-cat">
+        <option value="Moradia">🏠 Moradia</option>
+        <option value="Saúde">💊 Saúde</option>
+        <option value="Educação">📚 Educação</option>
+        <option value="Transporte">🚗 Transporte</option>
+        <option value="Alimentação">🍔 Alimentação</option>
+        <option value="Assinaturas">📺 Assinaturas</option>
+        <option value="Lazer">🎮 Lazer</option>
+        <option value="Outros">📦 Outros</option>
+      </select>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="fixa-cancel">Cancelar</button>
+      <button class="btn-primary" id="fixa-ok">Adicionar</button>
     </div>
   </div>
 </div>

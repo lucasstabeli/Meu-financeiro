@@ -11,10 +11,11 @@ const defaults = {
     rendaFixa: { salario: 0, valeRefeicao: 0, valeTransporte: 0 },
     diaCorte: null,
   },
-  transacoes: [],  // { id, tipo:'receita'|'gasto', valor, categoria?, descricao, data }
-  parcelas: [],    // { id, descricao, valorParcela, total, pagas, dataInicio }
-  objetivos: [],   // { id, tipo, nome, meta, atual }
-  chat: [],        // { role:'user'|'moedinha', text, ts, split? }
+  transacoes: [],   // { id, tipo:'receita'|'gasto', valor, categoria?, descricao, data }
+  parcelas: [],     // { id, descricao, valorParcela, total, pagas, dataInicio }
+  contasFixas: [],  // { id, descricao, valor, categoria }
+  objetivos: [],    // { id, tipo, nome, meta, atual }
+  chat: [],         // { role:'user'|'moedinha', text, ts, split? }
 };
 
 let appData = JSON.parse(localStorage.getItem(KEY) || 'null') || defaults;
@@ -162,9 +163,11 @@ function getAdvisor(mk) {
 
   const parcelasAtivas = appData.parcelas.filter(p => p.pagas < p.total);
   const totalParcelas  = parcelasAtivas.reduce((s, p) => s + p.valorParcela, 0);
+  const totalFixas     = (appData.contasFixas || []).reduce((s, c) => s + c.valor, 0);
+  const totalObrigacoes = totalParcelas + totalFixas;
 
-  // Dívidas saem primeiro; o que sobra é dividido nos buckets
-  const rendaLivre = Math.max(0, totalReceita - totalParcelas);
+  // Obrigações mensais saem primeiro; o que sobra é dividido nos buckets
+  const rendaLivre = Math.max(0, totalReceita - totalObrigacoes);
 
   const bucketInvestir = rendaLivre * cfg.investir / 100;
   const bucketCofrinho = rendaLivre * cfg.cofrinho / 100;
@@ -186,11 +189,11 @@ function getAdvisor(mk) {
     ? Math.min(100, (totalGasto / bucketGastar) * 100)
     : 0;
 
-  const debtRatio = totalReceita > 0 ? totalParcelas / totalReceita : 0;
+  const debtRatio = totalReceita > 0 ? totalObrigacoes / totalReceita : 0;
 
   let status;
   if (totalReceita === 0) status = 'neutro';
-  else if (totalParcelas >= totalReceita) status = 'vermelho';
+  else if (totalObrigacoes >= totalReceita) status = 'vermelho';
   else if (disponivel <= 0) status = 'vermelho';
   else if (percGasto >= 80 || debtRatio >= 0.8) status = 'vermelho';
   else if (percGasto >= 60 || debtRatio >= 0.6) status = 'amarelo';
@@ -213,7 +216,8 @@ function getAdvisor(mk) {
     totalReceita, totalExtra, salario, valeRefeicao, valeTransporte,
     rendaLivre,
     bucketInvestir, bucketCofrinho, bucketGastar,
-    totalParcelas, totalGasto, disponivel, diasRest, porDia,
+    totalParcelas, totalFixas, totalObrigacoes, totalGasto,
+    disponivel, diasRest, porDia,
     percGasto, debtRatio, status, acumInvestir, acumCofrinho,
   };
 }
@@ -236,10 +240,10 @@ function renderHome() {
     el('advisor-msg').textContent = 'Configure seu salário e benefícios nas configurações (⚙️) para eu calcular seus limites.';
     el('advisor-value').textContent = '';
     el('advisor-detail').textContent = 'Ou toque em + para registrar uma renda extra';
-  } else if (d.totalParcelas >= d.totalReceita) {
-    el('badge-label').textContent = 'Dívidas críticas!';
-    el('advisor-msg').textContent = 'Suas parcelas superam toda sua renda. Priorize renegociar suas dívidas agora.';
-    el('advisor-value').textContent = fmt(d.totalParcelas - d.totalReceita) + ' além da sua renda';
+  } else if (d.totalObrigacoes >= d.totalReceita) {
+    el('badge-label').textContent = 'Obrigações críticas!';
+    el('advisor-msg').textContent = 'Suas parcelas e contas fixas superam toda sua renda. Revise seus compromissos.';
+    el('advisor-value').textContent = fmt(d.totalObrigacoes - d.totalReceita) + ' além da sua renda';
     el('advisor-detail').textContent = 'Sem renda livre este mês';
   } else if (d.status === 'vermelho') {
     if (d.disponivel <= 0) {
@@ -287,13 +291,17 @@ function renderHome() {
   showSubRow('row-vt',      'sum-vt',      d.valeTransporte);
   showSubRow('row-extra',   'sum-extra',   d.totalExtra);
 
-  // Parcelas como prioridade (deduções antes do split)
+  // Obrigações mensais (parcelas + fixas) antes do split
   const temParcelas = d.totalParcelas > 0;
+  const temFixas    = d.totalFixas > 0;
+  const temObrig    = temParcelas || temFixas;
   el('row-parcelas').classList.toggle('hidden', !temParcelas);
-  el('div-renda-livre').classList.toggle('hidden', !temParcelas);
-  el('row-renda-livre').classList.toggle('hidden', !temParcelas);
-  if (temParcelas) {
-    el('sum-parcelas').textContent = fmt(d.totalParcelas);
+  el('row-fixas').classList.toggle('hidden', !temFixas);
+  el('div-renda-livre').classList.toggle('hidden', !temObrig);
+  el('row-renda-livre').classList.toggle('hidden', !temObrig);
+  if (temParcelas) el('sum-parcelas').textContent = fmt(d.totalParcelas);
+  if (temFixas)    el('sum-fixas').textContent    = fmt(d.totalFixas);
+  if (temObrig) {
     el('sum-renda-livre').textContent = fmt(d.rendaLivre);
     el('sum-renda-livre').className = d.rendaLivre > 0 ? 'val-green' : 'val-red';
   }
@@ -751,6 +759,63 @@ function showToast(msg) {
   t._t = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+// ── CONTAS FIXAS ─────────────────────────────────────────
+function renderFixas() {
+  const list = el('fixas-list');
+  const fixas = appData.contasFixas || [];
+  if (fixas.length === 0) {
+    list.innerHTML = '<div class="fixas-empty">Nenhuma conta fixa ainda. Toque em ＋ para adicionar.</div>';
+    return;
+  }
+  list.innerHTML = fixas.map(c => `
+    <div class="fixa-item">
+      <span class="fixa-ico">${fixaIcon(c.categoria)}</span>
+      <div class="fixa-info">
+        <span class="fixa-desc">${c.descricao}</span>
+        <span class="fixa-cat">${c.categoria}</span>
+      </div>
+      <span class="fixa-val val-red">−${fmt(c.valor)}</span>
+      <button class="fixa-del tx-action del-btn" data-id="${c.id}" title="Remover">×</button>
+    </div>`).join('');
+
+  list.querySelectorAll('.fixa-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Remover esta conta fixa?')) return;
+      appData.contasFixas = appData.contasFixas.filter(c => c.id !== btn.dataset.id);
+      save();
+      renderFixas();
+      renderHome();
+    });
+  });
+}
+
+function fixaIcon(cat) {
+  const m = { 'Moradia':'🏠','Saúde':'💊','Educação':'📚','Transporte':'🚗',
+    'Alimentação':'🍔','Lazer':'🎮','Assinaturas':'📺','Outros':'📦' };
+  return m[cat] || '📦';
+}
+
+el('fab-fixa').addEventListener('click', () => { closeFab(); openModal('modal-fixa'); });
+el('add-fixa-btn').addEventListener('click', () => openModal('modal-fixa'));
+
+el('fixa-cancel').addEventListener('click', () => closeModal('modal-fixa'));
+el('fixa-ok').addEventListener('click', () => {
+  const desc  = el('fixa-desc').value.trim();
+  const valor = parseFloat(el('fixa-valor').value);
+  const cat   = el('fixa-cat').value;
+  if (!desc)             { showToast('Informe uma descrição'); return; }
+  if (!valor || valor<=0){ showToast('Informe o valor mensal'); return; }
+  if (!appData.contasFixas) appData.contasFixas = [];
+  appData.contasFixas.push({ id: uid(), descricao: desc, valor, categoria: cat });
+  save();
+  closeModal('modal-fixa');
+  el('fixa-desc').value  = '';
+  el('fixa-valor').value = '';
+  renderFixas();
+  renderHome();
+  showToast('🔒 Conta fixa adicionada!');
+});
+
 // ── CHAT ─────────────────────────────────────────────────
 let chatPending = null; // { valor, tipo }
 
@@ -1027,6 +1092,7 @@ el('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') chatS
 // ── INIT ─────────────────────────────────────────────────
 function init() {
   renderHome();
+  renderFixas();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
