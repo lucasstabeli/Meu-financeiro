@@ -345,6 +345,10 @@
         <span class="fab-opt-icon">🔒</span>
         <span>Conta fixa mensal</span>
       </button>
+      <button class="fab-opt" id="fab-import">
+        <span class="fab-opt-icon">📥</span>
+        <span>Importar extrato</span>
+      </button>
     </div>
     <button id="fab" class="fab" aria-label="Adicionar">＋</button>
   </div>
@@ -608,6 +612,7 @@
         <input type="number" id="cfg-dia-corte" placeholder="Ex: 10" inputmode="numeric" min="1" max="31">
       </div>
     </div>
+    <button class="btn-secondary full-btn" id="import-btn">📥 Importar extrato do banco</button>
     <button class="btn-secondary full-btn" id="export-btn">📤 Exportar dados</button>
     <button class="btn-danger full-btn" id="reset-btn">🗑️ Limpar todos os dados</button>
     <div class="sheet-actions">
@@ -649,6 +654,43 @@
     <div class="sheet-actions">
       <button class="btn-secondary" id="fixa-cancel">Cancelar</button>
       <button class="btn-primary" id="fixa-ok">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: IMPORTAR EXTRATO -->
+<div id="modal-import" class="overlay hidden">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>📥 Importar extrato</h3>
+    <p class="field-hint">Traga suas transações do Nubank de uma vez só. Sem senha — só o arquivo do extrato.</p>
+
+    <button class="import-help-toggle" id="import-help-toggle">📱 Como baixar no Nubank?</button>
+    <div class="import-help hidden" id="import-help">
+      <ol>
+        <li>Abra o app do <strong>Nubank</strong>.</li>
+        <li><strong>Conta:</strong> toque no saldo → <em>Histórico</em> → ícone de compartilhar → <strong>OFX</strong> ou <strong>CSV</strong>.</li>
+        <li><strong>Cartão:</strong> abra uma fatura fechada → <em>Exportar fatura</em> → <strong>CSV</strong>.</li>
+        <li>Mande o arquivo pra este celular e escolha abaixo.</li>
+      </ol>
+      <p class="import-warn">⚠️ Importe a conta <strong>ou</strong> o cartão — não os dois juntos, pra não contar a mesma compra duas vezes.</p>
+    </div>
+
+    <input type="file" id="import-file" accept=".ofx,.csv,.txt,text/csv" hidden>
+    <div class="import-drop" id="import-drop">
+      <span class="import-drop-ico">📄</span>
+      <span id="import-drop-text">Toque para escolher o arquivo</span>
+      <span class="import-drop-sub">.OFX ou .CSV</span>
+    </div>
+
+    <div class="import-preview hidden" id="import-preview">
+      <div id="import-stats"></div>
+      <div class="import-tx-list" id="import-tx-list"></div>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="import-cancel">Cancelar</button>
+      <button class="btn-primary hidden" id="import-confirm">Importar</button>
     </div>
   </div>
 </div>

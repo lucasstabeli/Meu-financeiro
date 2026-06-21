@@ -1089,6 +1089,251 @@ el('chat-clear-btn').addEventListener('click', () => {
 el('chat-send').addEventListener('click', chatSend);
 el('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') chatSend(); });
 
+// ── IMPORT EXTRATO ───────────────────────────────────────
+let importParsed = null; // transações pendentes de confirmação
+
+el('fab-import').addEventListener('click', () => { closeFab(); openImport(); });
+el('import-btn').addEventListener('click', () => {
+  closeModal('modal-settings');
+  setTimeout(openImport, 260);
+});
+el('import-cancel').addEventListener('click', () => closeModal('modal-import'));
+el('import-help-toggle').addEventListener('click', () => {
+  el('import-help').classList.toggle('hidden');
+});
+
+el('import-drop').addEventListener('click', () => el('import-file').click());
+el('import-drop').addEventListener('dragover', e => {
+  e.preventDefault();
+  el('import-drop').classList.add('drag');
+});
+el('import-drop').addEventListener('dragleave', () => el('import-drop').classList.remove('drag'));
+el('import-drop').addEventListener('drop', e => {
+  e.preventDefault();
+  el('import-drop').classList.remove('drag');
+  if (e.dataTransfer.files.length) handleImportFile(e.dataTransfer.files[0]);
+});
+el('import-file').addEventListener('change', () => {
+  const f = el('import-file').files[0];
+  if (f) handleImportFile(f);
+});
+el('import-confirm').addEventListener('click', () => {
+  if (!importParsed || importParsed.length === 0) return;
+  appData.transacoes.push(...importParsed);
+  save();
+  const n = importParsed.length;
+  importParsed = null;
+  closeModal('modal-import');
+  renderHome();
+  if (currentView === 'wallet') renderWallet();
+  showToast('✅ ' + n + ' transações importadas!');
+});
+
+function openImport() {
+  importParsed = null;
+  el('import-file').value = '';
+  el('import-help').classList.add('hidden');
+  el('import-preview').classList.add('hidden');
+  el('import-confirm').classList.add('hidden');
+  el('import-drop-text').textContent = 'Toque para escolher o arquivo';
+  openModal('modal-import');
+}
+
+async function handleImportFile(file) {
+  let text;
+  try { text = await file.text(); }
+  catch { showToast('Não consegui ler o arquivo'); return; }
+
+  let parsed = [];
+  try {
+    parsed = /<ofx>|ofxheader/i.test(text) ? parseOFX(text) : parseCSV(text);
+  } catch { parsed = []; }
+
+  el('import-drop-text').textContent = file.name || 'Arquivo selecionado';
+  el('import-preview').classList.remove('hidden');
+
+  if (!parsed || parsed.length === 0) {
+    el('import-confirm').classList.add('hidden');
+    el('import-stats').innerHTML =
+      '<div class="import-empty">Não encontrei transações neste arquivo.<br>Confira se é o extrato em <strong>CSV</strong> ou <strong>OFX</strong> do Nubank.</div>';
+    el('import-tx-list').innerHTML = '';
+    return;
+  }
+
+  // Dedupe contra o que já foi importado antes
+  const existentes = new Set(appData.transacoes.map(t => t.importId).filter(Boolean));
+  const novos = parsed.filter(t => !existentes.has(t.importId));
+  const dups  = parsed.length - novos.length;
+  importParsed = novos;
+
+  const recs = novos.filter(t => t.tipo === 'receita');
+  const gas  = novos.filter(t => t.tipo === 'gasto');
+  const somaR = recs.reduce((s, t) => s + t.valor, 0);
+  const somaG = gas.reduce((s, t) => s + t.valor, 0);
+
+  el('import-stats').innerHTML =
+    '<div class="import-stat-row">' +
+      '<span class="import-stat import-stat-r">💰 ' + recs.length + ' receitas<strong>' + fmt(somaR) + '</strong></span>' +
+      '<span class="import-stat import-stat-g">🛒 ' + gas.length + ' gastos<strong>' + fmt(somaG) + '</strong></span>' +
+    '</div>' +
+    (dups ? '<p class="import-dup">' + dups + ' já estavam no app e serão ignoradas.</p>' : '');
+
+  if (novos.length === 0) {
+    el('import-tx-list').innerHTML = '<div class="import-empty">Tudo deste arquivo já foi importado antes. 👍</div>';
+    el('import-confirm').classList.add('hidden');
+    return;
+  }
+
+  el('import-tx-list').innerHTML = novos.slice(0, 40).map(t => {
+    const isR = t.tipo === 'receita';
+    return '<div class="import-tx">' +
+      '<span class="import-tx-ico">' + (isR ? '💰' : catIcon(t.categoria)) + '</span>' +
+      '<div class="import-tx-info">' +
+        '<span class="import-tx-desc">' + t.descricao + '</span>' +
+        '<span class="import-tx-sub">' + t.data.slice(5).replace('-', '/') + (t.categoria ? ' · ' + t.categoria : '') + '</span>' +
+      '</div>' +
+      '<span class="import-tx-val ' + (isR ? 'val-green' : 'val-red') + '">' + (isR ? '+' : '−') + fmt(t.valor) + '</span>' +
+    '</div>';
+  }).join('') + (novos.length > 40 ? '<div class="import-more">+ ' + (novos.length - 40) + ' transações…</div>' : '');
+
+  const btn = el('import-confirm');
+  btn.classList.remove('hidden');
+  btn.textContent = '✅ Importar ' + novos.length;
+}
+
+// ── PARSERS ──────────────────────────────────────────────
+function parseNum(raw) {
+  if (raw == null) return NaN;
+  let s = String(raw).trim().replace(/\s/g, '').replace(/r\$/i, '');
+  if (!s) return NaN;
+  const hasDot = s.includes('.'), hasComma = s.includes(',');
+  if (hasDot && hasComma) {
+    // o último separador é o decimal
+    s = s.lastIndexOf(',') > s.lastIndexOf('.')
+      ? s.replace(/\./g, '').replace(',', '.')
+      : s.replace(/,/g, '');
+  } else if (hasComma) {
+    s = s.replace(',', '.');
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? NaN : n;
+}
+
+function isoDate(raw) {
+  const s = String(raw || '').trim();
+  let m;
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)))   return m[1] + '-' + m[2] + '-' + m[3];
+  if ((m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/)))  return m[3] + '-' + m[2] + '-' + m[1];
+  if ((m = s.match(/^(\d{4})(\d{2})(\d{2})/)))      return m[1] + '-' + m[2] + '-' + m[3]; // OFX
+  if ((m = s.match(/^(\d{2})\/(\d{2})\/(\d{2})$/)))  return '20' + m[3] + '-' + m[2] + '-' + m[1];
+  return today();
+}
+
+function cleanDesc(s) {
+  return String(s || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Transação';
+}
+
+function guessCat(desc) {
+  const d = (desc || '').toLowerCase();
+  const has = (...w) => w.some(x => d.includes(x));
+  if (has('ifood','rappi','restaurante','lanchon','padaria','mercado','superm','hortif','açougue','acougue','pizz','burger','food','cafe','café','adega')) return 'Alimentação';
+  if (has('uber','99app','99 ','posto','combust','gasolina','estacion','metrô','metro','ônibus','onibus','passagem','bilhete','cabify')) return 'Transporte';
+  if (has('farmac','drogaria','drog ','hospital','clinic','saude','saúde','laborat','dentista')) return 'Saúde';
+  if (has('escola','curso','faculdade','udemy','alura','livraria','colégio','colegio')) return 'Educação';
+  if (has('aluguel','condom','energia','enel','cemig','light','sabesp','internet','vivo','claro','tim ','gás','gas ')) return 'Moradia';
+  if (has('netflix','spotify','prime','disney','hbo',' max','youtube','assinatura','playstation','xbox','icloud')) return 'Assinaturas';
+  if (has('cinema','steam','game','show','ingresso','lazer','parque')) return 'Lazer';
+  if (has('renner','riachuelo','zara','c&a','nike','adidas','roupa','calçad','calcad','shopping')) return 'Roupas';
+  return 'Outros';
+}
+
+function mkTx(importId, tipo, valor, data, descricao) {
+  const tx = { id: uid(), tipo, valor, descricao, data, importId };
+  if (tipo === 'gasto') tx.categoria = guessCat(descricao);
+  return tx;
+}
+
+function parseOFX(text) {
+  const out = [];
+  const counts = {};
+  const blocks = text.match(/<STMTTRN>[\s\S]*?<\/STMTTRN>/gi) || [];
+  blocks.forEach(b => {
+    const get = tag => {
+      const m = b.match(new RegExp('<' + tag + '>([^<\\r\\n]*)', 'i'));
+      return m ? m[1].trim() : '';
+    };
+    const amt = parseNum(get('TRNAMT'));
+    if (isNaN(amt) || amt === 0) return;
+    const data  = isoDate(get('DTPOSTED'));
+    const desc  = cleanDesc(get('MEMO') || get('NAME') || get('TRNTYPE'));
+    const fitid = get('FITID');
+    const tipo  = amt > 0 ? 'receita' : 'gasto';
+    const valor = Math.abs(amt);
+    const base  = fitid ? 'ofx:' + fitid : 'ofx:' + data + ':' + valor + ':' + desc;
+    counts[base] = (counts[base] || 0) + 1;
+    const importId = base + (counts[base] > 1 ? '#' + counts[base] : '');
+    out.push(mkTx(importId, tipo, valor, data, desc));
+  });
+  return out;
+}
+
+function parseCSVRow(line, delim) {
+  const out = [];
+  let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+      else cur += ch;
+    } else {
+      if (ch === '"') q = true;
+      else if (ch === delim) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map(s => s.trim());
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+  if (lines.length < 2) return [];
+  const delim = lines[0].split(';').length > lines[0].split(',').length ? ';' : ',';
+  const header = parseCSVRow(lines[0], delim).map(h => h.toLowerCase());
+
+  const idx = (...names) => header.findIndex(h => names.some(n => h.includes(n)));
+  const iData  = idx('data', 'date');
+  const iValor = idx('valor', 'amount', 'montante');
+  const iDesc  = idx('descri', 'title', 'lançamento', 'lancamento', 'histórico', 'historico', 'estabelecimento');
+  const isCard = idx('title') !== -1 && idx('amount') !== -1; // fatura do cartão Nubank
+
+  if (iData === -1 || iValor === -1) return [];
+
+  const out = [];
+  const counts = {};
+  for (let r = 1; r < lines.length; r++) {
+    const cols = parseCSVRow(lines[r], delim);
+    const amt = parseNum(cols[iValor]);
+    if (isNaN(amt) || amt === 0) continue;
+    const data = isoDate(cols[iData]);
+    const desc = cleanDesc(iDesc !== -1 ? cols[iDesc] : '');
+
+    let tipo, valor;
+    if (isCard) {
+      if (amt < 0) continue;       // pagamento/estorno da fatura — não é gasto novo
+      tipo = 'gasto'; valor = amt;
+    } else {
+      tipo = amt > 0 ? 'receita' : 'gasto';
+      valor = Math.abs(amt);
+    }
+    const base = 'csv:' + data + ':' + valor + ':' + tipo + ':' + desc;
+    counts[base] = (counts[base] || 0) + 1;
+    const importId = base + (counts[base] > 1 ? '#' + counts[base] : '');
+    out.push(mkTx(importId, tipo, valor, data, desc));
+  }
+  return out;
+}
+
 // ── INIT ─────────────────────────────────────────────────
 function init() {
   renderHome();
