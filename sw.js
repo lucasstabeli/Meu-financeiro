@@ -1,4 +1,4 @@
-const CACHE = 'wealthpro-v11';
+const CACHE = 'wealthpro-v12';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', e => {

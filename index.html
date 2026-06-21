@@ -241,11 +241,11 @@
       </div>
     </div>
 
-    <!-- TRANSAÇÕES -->
+    <!-- EXTRATO -->
     <div id="view-wallet" class="view">
       <div class="view-scroll">
         <header class="view-header">
-          <h2>Transações</h2>
+          <h2>Extrato</h2>
           <div class="month-nav">
             <button id="prev-month" class="icon-btn">‹</button>
             <span id="month-label">Mai 2026</span>
@@ -256,9 +256,21 @@
           <button class="filter-btn active" data-filter="all">Tudo</button>
           <button class="filter-btn" data-filter="receita">Receitas</button>
           <button class="filter-btn" data-filter="gasto">Gastos</button>
-          <button class="filter-btn" data-filter="parcela">Parcelas</button>
         </div>
         <div id="tx-list"></div>
+        <div class="bottom-spacer"></div>
+      </div>
+    </div>
+
+    <!-- PARCELAS -->
+    <div id="view-parcelas" class="view">
+      <div class="view-scroll">
+        <header class="view-header">
+          <h2>Parcelas</h2>
+          <button class="icon-btn" id="add-parcela-btn" aria-label="Nova parcela">＋</button>
+        </header>
+        <div id="parcelas-summary"></div>
+        <div id="parcelas-list"></div>
         <div class="bottom-spacer"></div>
       </div>
     </div>
@@ -360,10 +372,13 @@
       <span>Início</span>
     </button>
     <button class="nav-btn" data-view="wallet">
-      <span class="nav-ico">📋</span>
-      <span>Transações</span>
+      <span class="nav-ico">🧾</span>
+      <span>Extrato</span>
     </button>
-    <div class="nav-gap"></div>
+    <button class="nav-btn" data-view="parcelas">
+      <span class="nav-ico">📋</span>
+      <span>Parcelas</span>
+    </button>
     <button class="nav-btn" data-view="goals">
       <span class="nav-ico">🎯</span>
       <span>Objetivos</span>

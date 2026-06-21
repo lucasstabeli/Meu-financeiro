@@ -106,6 +106,7 @@ document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
 function renderView(view) {
   if (view === 'home') renderHome();
   else if (view === 'wallet') renderWallet();
+  else if (view === 'parcelas') renderParcelas();
   else if (view === 'goals') renderGoals();
 }
 
@@ -335,44 +336,23 @@ function renderWallet() {
 
   const list = el('tx-list');
 
-  let txItems = appData.transacoes
+  const txItems = appData.transacoes
     .filter(t => mkOf(t.data) === mk)
     .filter(t => walletFilter === 'all' || t.tipo === walletFilter)
     .sort((a, b) => b.data.localeCompare(a.data));
 
-  let parcItems = [];
-  if (walletFilter === 'all' || walletFilter === 'parcela') {
-    parcItems = appData.parcelas
-      .filter(p => p.pagas < p.total)
-      .map(p => ({
-        id: 'p_' + p.id,
-        tipo: 'parcela',
-        valor: p.valorParcela,
-        descricao: p.descricao,
-        data: mk + '-01',
-        badge: (p.pagas + 1) + '/' + p.total,
-        parcelaId: p.id,
-      }));
-  }
-
-  const allItems = [...parcItems, ...txItems];
-
-  if (allItems.length === 0) {
+  if (txItems.length === 0) {
     list.innerHTML = '<div class="empty-state">Nenhuma transação neste mês</div>';
     return;
   }
 
-  list.innerHTML = allItems.map(t => {
-    const isR = t.tipo === 'receita';
-    const isP = t.tipo === 'parcela';
-    const icon = isR ? '💰' : isP ? '📋' : catIcon(t.categoria);
+  list.innerHTML = txItems.map(t => {
+    const isR  = t.tipo === 'receita';
+    const icon = isR ? '💰' : catIcon(t.categoria);
     const sign = isR ? '+' : '−';
-    const cls  = isR ? 'tx-r' : isP ? 'tx-p' : 'tx-g';
-    const sub  = t.badge ? `Parcela ${t.badge}` : (t.categoria || '');
+    const cls  = isR ? 'tx-r' : 'tx-g';
+    const sub  = t.categoria || '';
     const date = t.data ? t.data.slice(5).replace('-', '/') : '';
-    const action = isP
-      ? `<button class="tx-action pay-btn" data-pid="${t.parcelaId}" title="Marcar como paga">✓</button>`
-      : `<button class="tx-action del-btn" data-id="${t.id}" title="Excluir">×</button>`;
     return `
       <div class="tx-item ${cls}">
         <div class="tx-ico">${icon}</div>
@@ -382,7 +362,7 @@ function renderWallet() {
         </div>
         <div class="tx-right">
           <span class="tx-val">${sign}${fmt(t.valor)}</span>
-          ${action}
+          <button class="tx-action del-btn" data-id="${t.id}" title="Excluir">×</button>
         </div>
       </div>`;
   }).join('');
@@ -391,18 +371,6 @@ function renderWallet() {
     btn.addEventListener('click', () => {
       if (!confirm('Remover esta transação?')) return;
       appData.transacoes = appData.transacoes.filter(t => t.id !== btn.dataset.id);
-      save();
-      renderWallet();
-      renderHome();
-    });
-  });
-
-  list.querySelectorAll('.pay-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const p = appData.parcelas.find(x => x.id === btn.dataset.pid);
-      if (!p) return;
-      if (!confirm(`Marcar parcela ${p.pagas + 1}/${p.total} como paga?`)) return;
-      p.pagas++;
       save();
       renderWallet();
       renderHome();
@@ -503,6 +471,88 @@ function goalTag(tipo) {
 
 el('add-goal-btn').addEventListener('click', () => openModal('modal-goal'));
 
+// ── RENDER PARCELAS ──────────────────────────────────────
+el('add-parcela-btn').addEventListener('click', () => openModal('modal-parcela'));
+
+function renderParcelas() {
+  const summary = el('parcelas-summary');
+  const list = el('parcelas-list');
+
+  if (appData.parcelas.length === 0) {
+    summary.innerHTML = '';
+    list.innerHTML = '<div class="empty-state">Nenhuma parcela cadastrada.<br>Toque em ＋ para adicionar suas compras parceladas.</div>';
+    return;
+  }
+
+  const ativas   = appData.parcelas.filter(p => p.pagas < p.total);
+  const quitadas = appData.parcelas.filter(p => p.pagas >= p.total);
+  const totalMes      = ativas.reduce((s, p) => s + p.valorParcela, 0);
+  const totalRestante = ativas.reduce((s, p) => s + p.valorParcela * (p.total - p.pagas), 0);
+
+  summary.innerHTML = `
+    <div class="parc-summary-card">
+      <div class="parc-sum-item">
+        <span class="parc-sum-label">Compromisso mensal</span>
+        <span class="parc-sum-val val-red">${fmt(totalMes)}<small>/mês</small></span>
+      </div>
+      <div class="parc-sum-divider"></div>
+      <div class="parc-sum-item">
+        <span class="parc-sum-label">Falta pagar no total</span>
+        <span class="parc-sum-val">${fmt(totalRestante)}</span>
+      </div>
+    </div>`;
+
+  const card = p => {
+    const restantes = p.total - p.pagas;
+    const perc = Math.min(100, (p.pagas / p.total) * 100);
+    const quitada = p.pagas >= p.total;
+    return `
+      <div class="parc-card ${quitada ? 'parc-quitada' : ''}">
+        <div class="parc-card-head">
+          <span class="parc-card-desc">${p.descricao}</span>
+          <button class="parc-del goal-del" data-id="${p.id}" title="Remover">×</button>
+        </div>
+        <div class="parc-card-vals">
+          <span class="parc-card-mensal">${fmt(p.valorParcela)}<small>/mês</small></span>
+          <span class="parc-card-count">${p.pagas}/${p.total} pagas</span>
+        </div>
+        <div class="goal-bar-wrap"><div class="goal-bar"><div class="goal-fill" style="width:${perc}%"></div></div></div>
+        <div class="parc-card-foot">
+          ${quitada
+            ? '<span class="parc-done">✅ Quitada</span>'
+            : `<span class="parc-falta">Faltam ${restantes}x · ${fmt(p.valorParcela * restantes)}</span>
+               <button class="parc-pay btn-sm" data-id="${p.id}">✓ Paguei uma</button>`}
+        </div>
+      </div>`;
+  };
+
+  list.innerHTML =
+    ativas.map(card).join('') +
+    (quitadas.length ? '<div class="section-label">Quitadas</div>' + quitadas.map(card).join('') : '');
+
+  list.querySelectorAll('.parc-pay').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = appData.parcelas.find(x => x.id === btn.dataset.id);
+      if (!p) return;
+      if (!confirm(`Marcar mais uma parcela como paga? (${p.pagas + 1}/${p.total})`)) return;
+      p.pagas++;
+      save();
+      renderParcelas();
+      renderHome();
+    });
+  });
+
+  list.querySelectorAll('.parc-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Remover esta parcela?')) return;
+      appData.parcelas = appData.parcelas.filter(x => x.id !== btn.dataset.id);
+      save();
+      renderParcelas();
+      renderHome();
+    });
+  });
+}
+
 // ── MODAL: RECEITA ───────────────────────────────────────
 el('receita-valor').addEventListener('input', () => {
   const v = parseFloat(el('receita-valor').value) || 0;
@@ -573,6 +623,7 @@ el('parc-ok').addEventListener('click', () => {
   el('parc-total').value = '';
   el('parc-pagas').value = '0';
   renderHome();
+  renderParcelas();
   showToast('📋 Parcela adicionada!');
 });
 

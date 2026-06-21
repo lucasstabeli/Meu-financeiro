@@ -1484,3 +1484,40 @@ input:focus, select:focus { outline: none; }
   background: var(--surf);
   border-top: 1px solid var(--border);
 }
+
+/* ── ABA PARCELAS ────────────────────────────────────── */
+.parc-summary-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.parc-sum-item { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.parc-sum-label { font-size: 12px; color: var(--sub); }
+.parc-sum-val { font-size: 18px; font-weight: 800; }
+.parc-sum-val small { font-size: 12px; font-weight: 600; opacity: .7; }
+.parc-sum-divider { width: 1px; background: var(--border); margin: 0 14px; }
+
+.parc-card {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.parc-card.parc-quitada { opacity: .6; }
+.parc-card-head { display: flex; align-items: center; justify-content: space-between; }
+.parc-card-desc { font-size: 15px; font-weight: 700; }
+.parc-card-vals { display: flex; align-items: baseline; justify-content: space-between; }
+.parc-card-mensal { font-size: 17px; font-weight: 800; color: var(--pri-lit); }
+.parc-card-mensal small { font-size: 12px; font-weight: 600; opacity: .7; }
+.parc-card-count { font-size: 13px; color: var(--sub); }
+.parc-card-foot { display: flex; align-items: center; justify-content: space-between; }
+.parc-falta { font-size: 13px; color: var(--sub); }
+.parc-done { font-size: 14px; font-weight: 600; color: var(--green); }
