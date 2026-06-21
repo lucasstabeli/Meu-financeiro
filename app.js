@@ -1173,6 +1173,9 @@ async function handleImportFile(file) {
     return;
   }
 
+  // arquivo reconhecido: recolhe a ajuda pra sobrar espaço pro preview
+  el('import-help').classList.add('hidden');
+
   // Dedupe contra o que já foi importado antes
   const existentes = new Set(appData.transacoes.map(t => t.importId).filter(Boolean));
   const novos = parsed.filter(t => !existentes.has(t.importId));
