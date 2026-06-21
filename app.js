@@ -1154,8 +1154,21 @@ async function handleImportFile(file) {
 
   if (!parsed || parsed.length === 0) {
     el('import-confirm').classList.add('hidden');
-    el('import-stats').innerHTML =
-      '<div class="import-empty">Não encontrei transações neste arquivo.<br>Confira se é o extrato em <strong>CSV</strong> ou <strong>OFX</strong> do Nubank.</div>';
+    const head = (text || '').trim();
+    let msg;
+    if (head.startsWith('%PDF')) {
+      msg = '📄 Esse arquivo é um <strong>PDF</strong>, e PDF eu não consigo ler.<br><br>No Nubank, na hora de exportar, escolha <strong>CSV</strong> ou <strong>OFX</strong> — não PDF.';
+    } else if (head.startsWith('PK')) {
+      msg = '📊 Isso parece um arquivo de <strong>Excel</strong> (.xlsx).<br><br>No Nubank, exporte como <strong>CSV</strong> ou <strong>OFX</strong>.';
+    } else if (!head) {
+      msg = 'O arquivo veio <strong>vazio</strong>. Tente exportar de novo no Nubank.';
+    } else {
+      const firstLine = head.split(/\r?\n/)[0].replace(/[<>]/g, '').slice(0, 90);
+      msg = 'Li o arquivo (' + (file.name || 'arquivo') + '), mas não reconheci as transações.<br><br>' +
+        'O começo do arquivo é:<br><code class="import-code">' + firstLine + '</code><br>' +
+        'Me manda essa linha que eu ajusto o app pra você. 🙂';
+    }
+    el('import-stats').innerHTML = '<div class="import-empty">' + msg + '</div>';
     el('import-tx-list').innerHTML = '';
     return;
   }

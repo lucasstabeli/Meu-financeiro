@@ -1437,6 +1437,17 @@ input:focus, select:focus { outline: none; }
 .import-stat-g { color: var(--red); }
 .import-dup { font-size: 12px; color: var(--sub); text-align: center; margin-bottom: 8px; }
 .import-empty { text-align: center; color: var(--sub); font-size: 13px; padding: 16px; line-height: 1.6; }
+.import-code {
+  display: inline-block;
+  margin: 8px 0;
+  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--pri-lit);
+  font-size: 12px;
+  word-break: break-all;
+}
 .import-tx-list {
   max-height: 230px;
   overflow-y: auto;
